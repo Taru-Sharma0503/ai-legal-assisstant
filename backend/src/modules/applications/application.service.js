@@ -293,3 +293,31 @@ export const uploadDocument = async (userId, applicationId, { documentName, file
     status: updatedDoc.status
   };
 };
+
+// Owner of the application, or staff (ADMIN/AGENT), can open an uploaded file
+export const canAccessFile = async (user, filename) => {
+  const urlEnd = `/uploads/${filename}`;
+
+  if (prisma && isDbConnected) {
+    try {
+      const doc = await prisma.applicationDocument.findFirst({
+        where: { fileUrl: { endsWith: urlEnd } },
+        include: { application: { select: { userId: true } } }
+      });
+      if (doc) {
+        return user.role !== 'CITIZEN' || doc.application.userId === user.id;
+      }
+    } catch (err) {
+      // fall through to the in-memory check
+    }
+  }
+
+  for (const app of mockApplications.values()) {
+    const hasFile = (app.documents || []).some(d => d.fileUrl && d.fileUrl.endsWith(urlEnd));
+    if (hasFile) {
+      return user.role !== 'CITIZEN' || app.userId === user.id;
+    }
+  }
+
+  return false;
+};

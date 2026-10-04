@@ -112,8 +112,9 @@ export const getConversationById = async (userId, conversationId) => {
     }
   }
 
-  if (!conversation) {
-    conversation = mockConversations.get(conversationId);
+    if (!conversation) {
+    const mock = mockConversations.get(conversationId);
+    if (mock && mock.userId === userId) conversation = mock;
   }
 
   if (!conversation) {
@@ -134,12 +135,12 @@ export const getConversationById = async (userId, conversationId) => {
 };
 
 export const askAi = async (userId, conversationId, { message, language }) => {
-  // 1. Validate conversation exists or fetch
+    // 1. The conversation must exist AND belong to this user
   let conversation = null;
   if (prisma && isDbConnected) {
     try {
-      conversation = await prisma.aiConversation.findUnique({
-        where: { id: conversationId }
+      conversation = await prisma.aiConversation.findFirst({
+        where: { id: conversationId, userId }
       });
     } catch (err) {
       // fallback
@@ -147,20 +148,12 @@ export const askAi = async (userId, conversationId, { message, language }) => {
   }
 
   if (!conversation) {
-    conversation = mockConversations.get(conversationId);
+    const mock = mockConversations.get(conversationId);
+    if (mock && mock.userId === userId) conversation = mock;
   }
 
   if (!conversation) {
-    conversation = {
-      id: conversationId,
-      userId,
-      language: language || 'hi',
-      title: message.substring(0, 30) + '...',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      messages: []
-    };
-    mockConversations.set(conversationId, conversation);
+    throw ApiError.notFound('Conversation not found');
   }
 
   // 2. Detect language & normalize query

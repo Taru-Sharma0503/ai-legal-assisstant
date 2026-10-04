@@ -51,6 +51,12 @@ export const normalizeQuery = (text) => {
   return text.trim().toLowerCase().replace(/[?,.!।]/g, '');
 };
 
+const STOPWORDS = new Set([
+  'the', 'for', 'and', 'how', 'can', 'what', 'are', 'you', 'with', 'need',
+  'want', 'get', 'make', 'please', 'tell', 'about',
+  'मुझे', 'कौन', 'चाहिए', 'क्या', 'कैसे', 'करना'
+]);
+
 export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) => {
   let dbChunks = [];
 
@@ -92,7 +98,9 @@ export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) =>
   ];
 
   // Score sources based on keyword overlap and semantic relevance
-  const queryTokens = normalizedQuery.split(/\s+/).filter(t => t.length > 2);
+    const queryTokens = normalizedQuery
+    .split(/\s+/)
+    .filter(t => t.length > 2 && !STOPWORDS.has(t));
   const scoredSources = allSources.map(source => {
     let score = 0;
     const textToMatch = `${source.title} ${source.content} ${(source.keywords || []).join(' ')}`.toLowerCase();
@@ -114,8 +122,8 @@ export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) =>
 
   const filtered = scoredSources.filter(s => s.score > 0).slice(0, topK);
 
-  // If no match found by keywords, return the most prominent source as context
-  return filtered.length > 0 ? filtered : [DEFAULT_KNOWLEDGE_SOURCES[0]];
+    // No verified source matched: return nothing instead of a wrong document
+  return filtered;
 };
 
 export const findSuggestedService = async (retrievedChunks, normalizedQuery) => {

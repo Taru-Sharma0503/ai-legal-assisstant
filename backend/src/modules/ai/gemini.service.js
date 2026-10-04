@@ -14,6 +14,11 @@ export const generateGroundedResponse = async ({
     .map((chunk, index) => `[Source ${index + 1} - ${chunk.title} (${chunk.department})]\n${chunk.content}`)
     .join('\n\n');
 
+      // No verified source matched: don't let Gemini guess, hand off to a human
+  if (retrievedChunks.length === 0) {
+    return generateFallbackResponse({ query, language, retrievedChunks, suggestedService });
+  }
+
   const prompt = `You are an AI Citizen Legal Assistant.
 Language requested: ${language}
 
