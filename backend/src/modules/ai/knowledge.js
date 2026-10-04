@@ -14,7 +14,6 @@ export const UNKNOWN_FIELD_KEYWORDS = [
   "bdo name",
   "collector name"
 ];
-
 export const UNKNOWN_FIELD_MSG = {
   en: "This information (such as processing time, officer name, or contact details) is not available in our verified database. For exact details, please contact a human officer.",
   hi: "यह जानकारी (जैसे प्रसंस्करण समय, अधिकारी का नाम, या संपर्क विवरण) अभी हमारे सत्यापित डेटाबेस में उपलब्ध नहीं है। सटीक जानकारी के लिए कृपया किसी मानव अधिकारी से संपर्क करें।",

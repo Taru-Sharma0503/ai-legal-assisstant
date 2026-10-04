@@ -1,0 +1,120 @@
+{
+    "service_metadata": {
+        "service_id": "up_birth_certificate",
+        "service_name_en": "Birth Certificate",
+        "service_name_hi": "जन्म प्रमाण पत्र",
+        "state": "Uttar Pradesh",
+        "source_type": "official_portal",
+        "portal_name": "eDistrict Uttar Pradesh",
+        "portal_url": "https://edistrict.up.gov.in"
+    },
+    "eligibility_criteria": [
+        "Birth should generally be registered within 21 days of the event.",
+        "Birth registration can be completed without mentioning the child's name, and the name may subsequently be added according to the applicable procedure.",
+        "जन्म का पंजीकरण सामान्यतः घटना के 21 दिनों के भीतर कराया जाना चाहिए।",
+        "बच्चे के नाम का उल्लेख किए बिना भी जन्म का पंजीकरण कराया जा सकता है और बाद में लागू प्रक्रिया के अनुसार नाम जोड़ा जा सकता है।"
+    ],
+    "required_documents_checklist": [
+        {
+            "doc_id": "informant_identity_proof",
+            "doc_name_en": "Informant Identity Proof",
+            "doc_name_hi": "मुखबिर का पहचान प्रमाण",
+            "mandatory": true
+        },
+        {
+            "doc_id": "hospital_birth_proof",
+            "doc_name_en": "Hospital Birth Certificate/Proof",
+            "doc_name_hi": "अस्पताल जन्म प्रमाण",
+            "mandatory": false
+        },
+        {
+            "doc_id": "proof_of_birth",
+            "doc_name_en": "Proof of Birth",
+            "doc_name_hi": "जन्म का प्रमाण",
+            "mandatory": false
+        },
+        {
+            "doc_id": "high_school_marksheet",
+            "doc_name_en": "High School Marksheet",
+            "doc_name_hi": "हाई स्कूल मार्कशीट",
+            "mandatory": false
+        },
+        {
+            "doc_id": "affidavit",
+            "doc_name_en": "Affidavit",
+            "doc_name_hi": "शपथ पत्र",
+            "mandatory": false
+        },
+        {
+            "doc_id": "magistrate_approval",
+            "doc_name_en": "First Class Magistrate Approval Certificate",
+            "doc_name_hi": "प्रथम श्रेणी मजिस्ट्रेट अनुमोदन प्रमाण पत्र",
+            "mandatory": false
+        }
+    ],
+    "unknown_fields": [
+        "processing_time"
+    ],
+    "vector_db_chunks": [
+        {
+            "chunk_id": "up_birth_cert_overview",
+            "text": "Service: Birth Certificate (जन्म प्रमाण पत्र), Uttar Pradesh. Birth registration should generally be completed within 21 days of the event. Birth registration is an official record of a child's birth.",
+            "metadata": {
+                "service_name": "Birth Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Overview & Registration",
+                "doc_id": "birth_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in"
+            }
+        },
+        {
+            "chunk_id": "up_birth_cert_documents",
+            "text": "Required Documents for Birth Certificate (UP): Informant identity proof such as Aadhaar Card, Voter ID, Ration Card or other identity proof. Hospital birth certificate/proof when the child was born in a hospital. Proof of birth when the birth occurred outside a hospital. The provided material also lists High School Marksheet, Affidavit and First Class Magistrate Approval Certificate as supporting documents.",
+            "metadata": {
+                "service_name": "Birth Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Required Documents",
+                "doc_id": "birth_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in"
+            }
+        },
+        {
+            "chunk_id": "up_birth_cert_fees",
+            "text": "Birth Certificate registration fees according to the provided UP source: registration within 21 days is free. Registration after 21 days but within one month has a late fee of ₹2. Registration after 30 days but before one year has a late fee of ₹5 and requires permission from the applicable health authority. Registration delayed by one year requires a Sub-Divisional Magistrate order.",
+            "metadata": {
+                "service_name": "Birth Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Fees & Delayed Registration",
+                "doc_id": "birth_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in"
+            }
+        },
+        {
+            "chunk_id": "up_birth_cert_offline",
+            "text": "Offline Birth Certificate application in Uttar Pradesh according to the provided material: registration can be handled through the hospital where the child was born or through a Nagar Nigam Service Centre. The hospital or service-centre operator fills the application using the information provided by the applicant. After submission, an SMS notification is sent to the applicant's mobile number.",
+            "metadata": {
+                "service_name": "Birth Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Offline Application",
+                "doc_id": "birth_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in"
+            }
+        },
+        {
+            "chunk_id": "up_birth_cert_online",
+            "text": "Online Birth Certificate application according to the provided eSathi material: log in using the eSathi Login ID and password, select Birth Certificate from the available services, enter the child's details including name if available, date of birth, birth time, gender and place of birth, enter parent details, indicate whether the birth occurred at a hospital, upload required documents, pay the applicable amount through the stated payment process, submit the application and retain the Service Request Number for tracking.",
+            "metadata": {
+                "service_name": "Birth Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Online Application",
+                "doc_id": "birth_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in"
+            }
+        }
+    ]
+}

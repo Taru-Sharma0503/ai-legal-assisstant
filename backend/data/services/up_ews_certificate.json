@@ -1,0 +1,130 @@
+{
+    "service_metadata": {
+        "service_id": "up_ews_certificate",
+        "service_name_en": "EWS Income & Asset Certificate",
+        "service_name_hi": "ईडब्ल्यूएस आय एवं संपत्ति प्रमाण-पत्र",
+        "state": "Uttar Pradesh",
+        "source_type": "official_government_document",
+        "source_organization": "Government of India - Department of Personnel and Training",
+        "source_document": "Office Memorandum No. 36039/1/2019-Estt (Res), dated 31 January 2019",
+        "portal_url": null
+    },
+    "eligibility_criteria": [
+        "Applicant must not be covered under the reservation scheme for SC, ST and OBC.",
+        "Family gross annual income must be below Rs. 8 lakh for the financial year prior to the year of application.",
+        "Income includes all sources such as salary, agriculture, business and profession.",
+        "A family owning or possessing 5 acres of agricultural land or more is excluded from EWS status.",
+        "A family owning or possessing a residential flat of 1000 sq. ft. or more is excluded from EWS status.",
+        "A family owning or possessing a residential plot of 100 sq. yards or more in notified municipalities is excluded from EWS status.",
+        "A family owning or possessing a residential plot of 200 sq. yards or more in areas other than notified municipalities is excluded from EWS status.",
+        "Property held by a family in different locations or cities is clubbed for applying the land or property holding test.",
+        "For EWS purposes, family includes the applicant, parents, siblings below 18 years, spouse and children below 18 years.",
+        "The applicant must belong to a caste that is not recognized as SC, ST or OBC in the Central List."
+    ],
+    "issuing_authority": [
+        "District Magistrate",
+        "Additional District Magistrate",
+        "Collector",
+        "Deputy Commissioner",
+        "Additional Deputy Commissioner",
+        "1st Class Stipendiary Magistrate",
+        "Sub-Divisional Magistrate",
+        "Taluka Magistrate",
+        "Executive Magistrate",
+        "Extra Assistant Commissioner",
+        "Chief Presidency Magistrate",
+        "Additional Chief Presidency Magistrate",
+        "Presidency Magistrate",
+        "Revenue Officer not below the rank of Tehsildar",
+        "Sub-Divisional Officer of the area where the candidate or family normally resides"
+    ],
+    "required_documents_checklist": [
+        {
+            "doc_id": "income_asset_certificate",
+            "doc_name_en": "Income and Asset Certificate in prescribed format",
+            "doc_name_hi": "निर्धारित प्रारूप में आय एवं संपत्ति प्रमाण-पत्र",
+            "mandatory": true
+        },
+        {
+            "doc_id": "applicant_photo",
+            "doc_name_en": "Recent Passport Size Attested Photograph",
+            "doc_name_hi": "हालिया पासपोर्ट आकार का सत्यापित फोटो",
+            "mandatory": true
+        }
+    ],
+    "certificate_details": [
+        "The certificate is valid for the year specified on the certificate.",
+        "The prescribed certificate contains the applicant's name, relationship details, permanent residence, village/street, post office, district, state/UT and PIN code.",
+        "The certificate must contain the signature, seal, name and designation of the issuing authority.",
+        "The issuing officer must verify the relevant documents according to the due process prescribed by the respective State or Union Territory."
+    ],
+    "reservation_details": [
+        "EWS persons not covered under the SC, ST and OBC reservation scheme are provided 10% reservation in direct recruitment to civil posts and services of the Government of India."
+    ],
+    "unknown_fields": [
+        "application_process",
+        "online_application_portal",
+        "application_fee",
+        "processing_time",
+        "UP_specific_application_procedure",
+        "UP_specific_fee",
+        "UP_specific_service_portal"
+    ],
+    "vector_db_chunks": [
+        {
+            "chunk_id": "up_ews_eligibility",
+            "text": "EWS eligibility: Persons not covered under the reservation scheme for SCs, STs and OBCs whose family has gross annual income below Rs. 8 lakh are identified as EWS. Income includes salary, agriculture, business, profession and other sources for the financial year prior to the year of application.",
+            "metadata": {
+                "service_name": "EWS Income & Asset Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Eligibility",
+                "doc_id": "ews_certificate_up",
+                "source_type": "official_government_document"
+            }
+        },
+        {
+            "chunk_id": "up_ews_asset_criteria",
+            "text": "EWS asset criteria: A family is excluded from EWS status if it owns or possesses 5 acres of agricultural land or more, a residential flat of 1000 sq. ft. or more, a residential plot of 100 sq. yards or more in notified municipalities, or a residential plot of 200 sq. yards or more in areas other than notified municipalities. Property held by a family in different locations is clubbed for the property holding test.",
+            "metadata": {
+                "service_name": "EWS Income & Asset Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Income & Asset Criteria",
+                "doc_id": "ews_certificate_up",
+                "source_type": "official_government_document"
+            }
+        },
+        {
+            "chunk_id": "up_ews_family_definition",
+            "text": "For EWS purposes, family includes the person seeking reservation benefit, his or her parents, siblings below 18 years, spouse and children below 18 years.",
+            "metadata": {
+                "service_name": "EWS Income & Asset Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Family Definition",
+                "doc_id": "ews_certificate_up",
+                "source_type": "official_government_document"
+            }
+        },
+        {
+            "chunk_id": "up_ews_issuing_authority",
+            "text": "The EWS Income and Asset Certificate may be issued by competent authorities including District Magistrate, Additional District Magistrate, Collector, Deputy Commissioner, Sub-Divisional Magistrate, Executive Magistrate, Revenue Officer not below the rank of Tehsildar, or Sub-Divisional Officer of the area where the candidate or family normally resides.",
+            "metadata": {
+                "service_name": "EWS Income & Asset Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Issuing Authority",
+                "doc_id": "ews_certificate_up",
+                "source_type": "official_government_document"
+            }
+        },
+        {
+            "chunk_id": "up_ews_certificate_format",
+            "text": "The prescribed EWS Income and Asset Certificate contains the applicant's identity and residence details, certificate number, date, validity year, annual family income declaration, applicable asset criteria, caste eligibility declaration, issuing authority signature and seal, and a recent passport-size attested photograph.",
+            "metadata": {
+                "service_name": "EWS Income & Asset Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Certificate Format",
+                "doc_id": "ews_certificate_up",
+                "source_type": "official_government_document"
+            }
+        }
+    ]
+}
