@@ -1,0 +1,229 @@
+{
+    "service_metadata": {
+        "service_id": "up_death_certificate",
+        "service_name_en": "Death Certificate",
+        "service_name_hi": "मृत्यु प्रमाण पत्र",
+        "state": "Uttar Pradesh",
+        "source_type": "official_portal",
+        "portal_name": "Uttar Pradesh Government / Civil Registration System",
+        "portal_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+    },
+    "eligibility_criteria": [
+        "Death should generally be registered within 21 days from the date of death.",
+        "If death occurs at home, the head of the household can register the death at the concerned Registrar Office.",
+        "If death occurs in a hospital, a person authorized by the medical institution is responsible for recording or registering the death.",
+        "If death occurs in jail, the jail in-charge can register the death with the concerned Registrar Office.",
+        "If death occurs in a public place, the local police in-charge or headman of the village can record the death.",
+        "मृत्यु का पंजीकरण सामान्यतः मृत्यु की तारीख से 21 दिनों के भीतर कराया जाना चाहिए।"
+    ],
+    "required_documents_checklist": [
+        {
+            "doc_id": "application_form",
+            "doc_name_en": "Application Form",
+            "doc_name_hi": "आवेदन पत्र",
+            "mandatory": true
+        },
+        {
+            "doc_id": "identity_proof",
+            "doc_name_en": "Identity Proof",
+            "doc_name_hi": "पहचान प्रमाण",
+            "mandatory": true,
+            "description_en": "Any one of passport, ration card, self-certified declaration, voter card, PAN card, driving licence or document from a nationalized bank."
+        },
+        {
+            "doc_id": "hospital_death_certificate",
+            "doc_name_en": "Hospital Death Certificate",
+            "doc_name_hi": "अस्पताल का मृत्यु प्रमाण पत्र",
+            "mandatory": false
+        },
+        {
+            "doc_id": "proof_of_death",
+            "doc_name_en": "Proof of Death",
+            "doc_name_hi": "मृत्यु का प्रमाण",
+            "mandatory": true
+        },
+        {
+            "doc_id": "ration_card",
+            "doc_name_en": "Ration Card",
+            "doc_name_hi": "राशन कार्ड",
+            "mandatory": false
+        },
+        {
+            "doc_id": "deceased_photo",
+            "doc_name_en": "Passport Size Photograph of the Deceased",
+            "doc_name_hi": "मृतक का पासपोर्ट साइज फोटो",
+            "mandatory": false
+        },
+        {
+            "doc_id": "affidavit_delayed",
+            "doc_name_en": "Affidavit for Delayed Registration",
+            "doc_name_hi": "विलंबित पंजीकरण के लिए शपथ पत्र",
+            "mandatory": false,
+            "description_en": "Required according to the provided source when registering the death after one year."
+        },
+        {
+            "doc_id": "local_authority_certificate",
+            "doc_name_en": "Certificate from Local Authority",
+            "doc_name_hi": "स्थानीय प्राधिकारी का प्रमाण पत्र",
+            "mandatory": false,
+            "description_en": "Where there is no hospital, the applicant may submit a certificate issued by the village head, regional councillor, MP or MLA."
+        }
+    ],
+    "application_process_steps": [
+        {
+            "step_number": 1,
+            "title_en": "Visit the Official Portal",
+            "description_en": "Visit the Civil Registration System portal at https://crsorgi.gov.in/web/index.php/auth/login."
+        },
+        {
+            "step_number": 2,
+            "title_en": "Citizen Login",
+            "description_en": "For online application, visit the Uttar Pradesh Government portal and select the Citizen's Login option."
+        },
+        {
+            "step_number": 3,
+            "title_en": "Register or Login",
+            "description_en": "Enter the mobile number and password if already registered, or select New Registration."
+        },
+        {
+            "step_number": 4,
+            "title_en": "Select Death Certificate",
+            "description_en": "After registration and login, select the Death Certificate service."
+        },
+        {
+            "step_number": 5,
+            "title_en": "Fill Application",
+            "description_en": "Enter the required details in the application form and upload the scanned documents."
+        },
+        {
+            "step_number": 6,
+            "title_en": "SMS Acknowledgement",
+            "description_en": "After submission, an SMS acknowledgement is sent to the registered mobile number."
+        },
+        {
+            "step_number": 7,
+            "title_en": "Apply Through CSC",
+            "description_en": "For CSC application, visit the nearest CSC centre, obtain the death certificate application form, fill in the required details and attach the specified documents."
+        },
+        {
+            "step_number": 8,
+            "title_en": "Submit and Pay",
+            "description_en": "Submit the completed form to the CSC operator and make the required payment for processing through the Nagar Nigam."
+        }
+    ],
+    "fees": [
+        {
+            "condition": "Registration within 21 days",
+            "fee": "Free"
+        },
+        {
+            "condition": "Registration after 21 days",
+            "fee": "A late fee applies; exact amount is not specified in the provided source."
+        },
+        {
+            "condition": "Registration after 30 days",
+            "fee": "A higher late fee applies; exact amount is not specified in the provided source."
+        }
+    ],
+    "application_locations": [
+        "CMO Office, Sector-38, Noida",
+        "Alpha-1, C Block Market, Greater Noida",
+        "Nagar Panchayats",
+        "Nagar Palika",
+        "PSC/CSC Centres"
+    ],
+    "application_status": {
+        "available": true,
+        "description_en": "To check the application status, select the Death Certificate option under citizen services, choose Check Status and enter the acknowledgement number."
+    },
+    "reasons_for_obtaining": [
+        "A death certificate records the cause, location and time of death.",
+        "It can serve as proof for legal purposes including pension benefits, life insurance claims, medical benefits and other official commitments."
+    ],
+    "vector_db_chunks": [
+        {
+            "chunk_id": "up_death_cert_overview",
+            "text": "Service: Death Certificate (मृत्यु प्रमाण पत्र), Uttar Pradesh. Death registration is required and should generally be completed within 21 days from the date of death. A death certificate records the death and can serve as legal proof for pension benefits, life insurance, medical benefits and other official purposes.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Overview & Purpose",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        },
+        {
+            "chunk_id": "up_death_cert_registration",
+            "text": "Who can register a death in Uttar Pradesh: If death occurs at home, the head of the household can register it at the concerned Registrar Office. If death occurs in a hospital, an authorized person from the medical institution is responsible for registration. If death occurs in jail, the jail in-charge can register it. If death occurs in a public place, the local police in-charge or village headman can record it.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Who Can Register",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        },
+        {
+            "chunk_id": "up_death_cert_documents",
+            "text": "Required documents for Death Certificate (UP): Application form, identity proof such as passport, ration card, self-certified declaration, voter card, PAN card, driving licence or nationalized bank document, ration card, passport-size photograph of the deceased, and proof of death. An affidavit may be required when registering a death after one year. Where there is no hospital, a certificate issued by the village head, regional councillor, MP or MLA may be submitted according to the provided source.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Required Documents",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        },
+        {
+            "chunk_id": "up_death_cert_fees",
+            "text": "Death Certificate registration fees according to the provided source: registration within 21 days is free. Registration after 21 days and after 30 days attracts late fees, but the exact fee amounts are not specified in the provided source.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Fees & Delayed Registration",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        },
+        {
+            "chunk_id": "up_death_cert_online",
+            "text": "Online Death Certificate application: Visit the Uttar Pradesh Government portal, select Citizen's Login, enter the mobile number and password if already registered or select New Registration, log in and select the Death Certificate service, fill in the application details and upload scanned documents. An SMS acknowledgement is sent to the registered mobile number after submission.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Online Application",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        },
+        {
+            "chunk_id": "up_death_cert_csc",
+            "text": "Death Certificate application through CSC: Visit the nearest CSC centre, obtain the death certificate application form, fill in the required details and attach the specified documents. Submit the completed form to the CSC operator. After submission, an SMS acknowledgement is sent to the registered mobile number. Payment is then made for processing through the Nagar Nigam.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "CSC Application",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        },
+        {
+            "chunk_id": "up_death_cert_status",
+            "text": "To track the Death Certificate application status, select the Death Certificate option under citizen services, choose Check Status and enter the acknowledgement number to view the application status.",
+            "metadata": {
+                "service_name": "Death Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Application Status",
+                "doc_id": "death_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://crsorgi.gov.in/web/index.php/auth/login"
+            }
+        }
+    ]
+}

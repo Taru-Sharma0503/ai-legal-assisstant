@@ -1,0 +1,145 @@
+{
+    "service_metadata": {
+        "service_id": "up_character_certificate",
+        "service_name_en": "Character Certificate",
+        "service_name_hi": "चरित्र प्रमाण-पत्र",
+        "state": "Uttar Pradesh",
+        "source_type": "government_document",
+        "portal_name": null,
+        "portal_url": null
+    },
+    "certificate_information": [
+        "The Character Certificate form records details about the applicant's identity, age, education, occupation and address.",
+        "The form includes information regarding criminal cases registered at the police station, if any.",
+        "The form includes the applicant's general reputation.",
+        "The form includes an explicit statement regarding the applicant's conduct and character.",
+        "The form includes information on whether any adverse entry exists against the applicant in the relevant police station record."
+    ],
+    "application_fields": [
+        {
+            "field_id": "applicant_name",
+            "field_name_en": "Applicant Name",
+            "field_name_hi": "आवेदक का नाम",
+            "required": true
+        },
+        {
+            "field_id": "parent_or_spouse_name",
+            "field_name_en": "Father/Husband Name",
+            "field_name_hi": "पिता/पति का नाम",
+            "required": true
+        },
+        {
+            "field_id": "age",
+            "field_name_en": "Age",
+            "field_name_hi": "आयु",
+            "required": true
+        },
+        {
+            "field_id": "educational_qualification",
+            "field_name_en": "Educational Qualification",
+            "field_name_hi": "शैक्षिक योग्यता",
+            "required": true
+        },
+        {
+            "field_id": "occupation",
+            "field_name_en": "Occupation",
+            "field_name_hi": "व्यवसाय",
+            "required": true
+        },
+        {
+            "field_id": "permanent_address",
+            "field_name_en": "Permanent Address",
+            "field_name_hi": "स्थायी पता",
+            "required": true
+        },
+        {
+            "field_id": "temporary_address",
+            "field_name_en": "Temporary Address and Telephone Number",
+            "field_name_hi": "अस्थाई पता व दूरभाष नंबर",
+            "required": true
+        },
+        {
+            "field_id": "criminal_case_details",
+            "field_name_en": "Details of Criminal Cases, if any",
+            "field_name_hi": "थाने पर आपराधिक मुकदमों का विवरण, यदि कोई हो",
+            "required": false
+        },
+        {
+            "field_id": "general_reputation",
+            "field_name_en": "General Reputation",
+            "field_name_hi": "सामान्य ख्याति",
+            "required": true
+        },
+        {
+            "field_id": "conduct_character",
+            "field_name_en": "Conduct and Character Remarks",
+            "field_name_hi": "आवेदक के आचरण व चरित्र के संबंध में स्पष्ट उल्लेख",
+            "required": true
+        },
+        {
+            "field_id": "police_record_adverse_entry",
+            "field_name_en": "Adverse Police Record Entry",
+            "field_name_hi": "पुलिस अभिलेख में प्रतिकूल प्रविष्टि",
+            "required": true
+        },
+        {
+            "field_id": "other_details",
+            "field_name_en": "Other Details",
+            "field_name_hi": "अन्य विवरण",
+            "required": false
+        }
+    ],
+    "required_documents_checklist": [],
+    "application_process_steps": [],
+    "fees": {
+        "amount_inr": null,
+        "details": "The provided Character Certificate page does not specify any application fee."
+    },
+    "unknown_fields": [
+        "application_process",
+        "online_application_portal",
+        "offline_application_procedure",
+        "required_supporting_documents",
+        "processing_time",
+        "application_fee",
+        "issuing_authority"
+    ],
+    "vector_db_chunks": [
+        {
+            "chunk_id": "up_character_cert_overview",
+            "text": "Character Certificate (चरित्र प्रमाण-पत्र), Uttar Pradesh. The form records applicant identity, age, educational qualification, occupation, permanent and temporary address, criminal case details if any, general reputation, conduct and character remarks, police record remarks and other details.",
+            "metadata": {
+                "service_name": "Character Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Certificate Overview",
+                "doc_id": "character_certificate_up",
+                "source_type": "government_document",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_character_cert_personal_details",
+            "text": "Character Certificate form fields include applicant name, father or husband name, age, educational qualification, occupation, permanent address and temporary address with telephone number.",
+            "metadata": {
+                "service_name": "Character Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Applicant Details",
+                "doc_id": "character_certificate_up",
+                "source_type": "government_document",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_character_cert_police_details",
+            "text": "The Character Certificate form includes details of criminal cases at the police station, if any, general reputation, explicit remarks regarding the applicant's conduct and character, and whether any adverse entry exists against the applicant in the relevant police station record.",
+            "metadata": {
+                "service_name": "Character Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Police & Character Verification",
+                "doc_id": "character_certificate_up",
+                "source_type": "government_document",
+                "source_url": null
+            }
+        }
+    ]
+}

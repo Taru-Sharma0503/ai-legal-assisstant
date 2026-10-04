@@ -1,0 +1,133 @@
+{
+  "service_metadata": {
+    "service_id": "up_domicile_certificate",
+    "service_name_en": "Domicile Certificate",
+    "service_name_hi": "निवास प्रमाण-पत्र",
+    "state": "Uttar Pradesh",
+    "department": "Revenue Department (राजस्व विभाग)",
+    "issuing_authority": "SDM (उप जिलाधिकारी) / Tehsildar (तहसीलदार)",
+    "portal_name": "eDistrict Uttar Pradesh",
+    "portal_url": "https://edistrict.up.gov.in",
+    "fee_details": {
+      "amount_inr": 30,
+      "effective_from": "2020-11-16",
+      "payment_modes": [
+        "Online Payment",
+        "CSC Facilitation"
+      ]
+    },
+    "authentication_method": "Mandatory Aadhaar e-KYC Verification (OTP-based)"
+  },
+  "eligibility_criteria": [
+    "Applicant must be a resident of Uttar Pradesh.",
+    "Required for admissions, scholarships, government jobs, and other state benefits.",
+    "Must have continuous residence proof or own property/land in UP."
+  ],
+  "required_documents_checklist": [
+    {
+      "doc_id": "applicant_photo",
+      "doc_name_en": "Passport Size Photograph",
+      "doc_name_hi": "आवेदक का फोटो",
+      "mandatory": true,
+      "max_size_kb": 50,
+      "format": ["JPEG"],
+      "note": "Auto-fetched during Aadhaar e-KYC with an option to update manually."
+    },
+    {
+      "doc_id": "self_declaration_form",
+      "doc_name_en": "Self-Certified Declaration Form",
+      "doc_name_hi": "स्वप्रमाणित घोषणा पत्र",
+      "mandatory": true,
+      "max_size_kb": 100,
+      "format": ["JPEG", "PDF"],
+      "note": "Standard government format downloadable from portal."
+    },
+    {
+      "doc_id": "address_proof",
+      "doc_name_en": "Address & Residence Proof",
+      "doc_name_hi": "राशन कार्ड की छाया प्रति अथवा बिजली का बिल",
+      "mandatory": true,
+      "max_size_kb": 100,
+      "format": ["JPEG", "PDF"],
+      "note": "Ration card, Electricity bill, Voter ID, or Water bill."
+    },
+    {
+      "doc_id": "education_cert",
+      "doc_name_en": "Education Certificate",
+      "doc_name_hi": "शैक्षिक प्रमाण पत्र",
+      "mandatory": false,
+      "max_size_kb": 100,
+      "format": ["JPEG", "PDF"],
+      "note": "Optional but helpful if applying for educational purposes."
+    }
+  ],
+  "workflow_steps": [
+    {
+      "step_number": 1,
+      "action": "Portal Login",
+      "details": "User logs in with mobile number/email on edistrict.up.gov.in."
+    },
+    {
+      "step_number": 2,
+      "action": "Aadhaar e-KYC Trigger",
+      "details": "User inputs Aadhaar number and registered mobile number."
+    },
+    {
+      "step_number": 3,
+      "action": "OTP Verification",
+      "details": "User receives and submits OTP on Aadhaar-linked mobile."
+    },
+    {
+      "step_number": 4,
+      "action": "Form Completion",
+      "details": "User fills personal details, address history, and uploads required documents."
+    },
+    {
+      "step_number": 5,
+      "action": "Fee Payment",
+      "details": "User pays ₹30 service fee electronically."
+    },
+    {
+      "step_number": 6,
+      "action": "Field Verification",
+      "details": "Application routed to Lekhpal/Revenue Inspector for residential verification."
+    },
+    {
+      "step_number": 7,
+      "action": "Issuance",
+      "details": "SDM or Tehsildar approves and issues the digital certificate."
+    }
+  ],
+  "vector_db_chunks": [
+    {
+      "chunk_id": "up_domicile_cert_overview",
+      "text": "Service: Domicile Certificate (Niwas Praman Patra), Uttar Pradesh Revenue Department. Issued by SDM/Tehsildar via eDistrict UP portal (edistrict.up.gov.in). Mandatory ₹30 fee. Requires Aadhaar e-KYC OTP authentication. Essential for state scholarships and jobs.",
+      "metadata": {
+        "service_name": "Domicile Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Overview & Fee",
+        "doc_id": "domicile_certificate_up"
+      }
+    },
+    {
+      "chunk_id": "up_domicile_cert_checklist",
+      "text": "Required Documents for Domicile Certificate (UP): 1. Applicant Photo (JPEG under 50KB). 2. Self-Certified Declaration Form (Swapramanit Ghoshna Patra). 3. Address Proof like Ration Card, Voter ID or Electricity Bill. 4. Educational Certificate (Optional).",
+      "metadata": {
+        "service_name": "Domicile Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Required Documents",
+        "doc_id": "domicile_certificate_up"
+      }
+    },
+    {
+      "chunk_id": "up_domicile_cert_procedure",
+      "text": "Application Procedure: Log into edistrict.up.gov.in. Complete Aadhaar e-KYC via OTP. Fill address details and history of residence in UP. Upload photo, self-declaration, and address proof. Pay ₹30 fee online. Verification is done by Lekhpal/Revenue Inspector before SDM/Tehsildar issues the certificate.",
+      "metadata": {
+        "service_name": "Domicile Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Application Procedure",
+        "doc_id": "domicile_certificate_up"
+      }
+    }
+  ]
+}

@@ -1,0 +1,332 @@
+{
+  "service_metadata": {
+    "service_id": "up_income_certificate",
+    "service_name_en": "Income Certificate",
+    "service_name_hi": "आय प्रमाण-पत्र",
+    "state": "Uttar Pradesh",
+    "department": "Revenue Department (राजस्व विभाग)",
+    "issuing_authority": "Tehsildar (तहसीलदार)",
+    "portal_name": "eDistrict Uttar Pradesh",
+    "portal_url": "https://edistrict.up.gov.in",
+    "fee_details": {
+      "amount_inr": 30,
+      "effective_from": "2020-11-16",
+      "payment_modes": [
+        "Online Payment",
+        "CSC Facilitation"
+      ]
+    },
+    "authentication_method": "Mandatory Aadhaar e-KYC Verification (OTP-based)"
+  },
+  "income_calculation_rules": {
+    "family_definition": "Includes spouse, minor children, unmarried adult children, and dependent parents living together with no independent income.",
+    "exclusions": "Income of a widowed or abandoned woman in the family is NOT included in the family income calculation.",
+    "verifying_officers": {
+      "rural": "Lekhpal (लेखपाल)",
+      "urban": "Revenue Inspector / Kanungo (राजस्व निरीक्षक)"
+    }
+  },
+  "eligibility_criteria": [
+    "Applicant or their family must be a resident of Uttar Pradesh.",
+    "No minimum or maximum family income limit applies to request the certificate.",
+    "Students applying for scholarships must apply using their parent/guardian's family income details."
+  ],
+  "application_form_schema": {
+    "sections": [
+      {
+        "section_name": "Area Type",
+        "fields": [
+          {
+            "field_id": "area_type",
+            "label_hi": "सेवा का प्रकार",
+            "type": "radio",
+            "options": [
+              "ग्रामीण (Rural)",
+              "नगरीय (Urban)"
+            ],
+            "required": true
+          }
+        ]
+      },
+      {
+        "section_name": "Personal Details",
+        "fields": [
+          {
+            "field_id": "applicant_name",
+            "label_hi": "प्रार्थी का नाम",
+            "type": "string",
+            "required": true,
+            "auto_fetched_from_aadhaar": true
+          },
+          {
+            "field_id": "guardian_name",
+            "label_hi": "पिता/पति/संरक्षक का नाम",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "mother_name",
+            "label_hi": "माता का नाम",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "dob",
+            "label_hi": "जन्म तिथि",
+            "type": "date",
+            "required": true,
+            "auto_fetched_from_aadhaar": true
+          },
+          {
+            "field_id": "mobile_number",
+            "label_hi": "मोबाईल नम्बर",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      {
+        "section_name": "Address Details",
+        "fields": [
+          {
+            "field_id": "house_no",
+            "label_hi": "मकान नम्बर",
+            "type": "string",
+            "required": false
+          },
+          {
+            "field_id": "mohalla_post",
+            "label_hi": "मौहल्ला/पोस्ट",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "district",
+            "label_hi": "जनपद",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "tehsil",
+            "label_hi": "तहसील",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "village_name",
+            "label_hi": "ग्राम का नाम",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "permanent_address",
+            "label_hi": "स्थाई पता",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      {
+        "section_name": "Occupation & Income Categories",
+        "fields": [
+          {
+            "field_id": "primary_occupation",
+            "label_hi": "व्यवसाय",
+            "type": "string",
+            "required": true
+          },
+          {
+            "field_id": "unskilled_labor_income",
+            "label_hi": "अकुशल भूमिहीन मजदूर / खेतिहर मजदूर से आय (रु.)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "field_id": "skilled_labor_income",
+            "label_hi": "कुशल मजदूर/ कुशल खेतिहर मजदूर से आय (रु.)",
+            "type": "number",
+            "required": false,
+            "description": "Blacksmith, carpenter, mason, artisan, vendor, hawker, small shopkeeper"
+          },
+          {
+            "field_id": "agriculture_details",
+            "label_hi": "कृषि भूमि का विवरण (ग्राम, क्षेत्रफल हे० में, आय रु.)",
+            "type": "object",
+            "required": false
+          },
+          {
+            "field_id": "pension_income",
+            "label_hi": "पेंशन से आय (रु.)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "field_id": "salaried_income",
+            "label_hi": "सेवायोजन/वेतन से आय (रु.)",
+            "type": "number",
+            "required": false,
+            "attachment_required": "Latest Payslip / Salary Slip"
+          },
+          {
+            "field_id": "private_business_income",
+            "label_hi": "निजी व्यवसाय से आय (रु.)",
+            "type": "number",
+            "required": false,
+            "description": "Doctor, lawyer, architect, CA, medium/large business (Requires shop rent/tax return/ITR copy)"
+          },
+          {
+            "field_id": "other_sources_income",
+            "label_hi": "अन्य स्रोतों से आय (रु.)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "field_id": "total_annual_family_income",
+            "label_hi": "परिवार की कुल वार्षिक आय (रु.)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "field_id": "reason_for_application",
+            "label_hi": "प्रमाण पत्र बनवाने का कारण",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    ]
+  },
+  "required_documents_checklist": [
+    {
+      "doc_id": "applicant_photo",
+      "doc_name_en": "Passport Size Photograph",
+      "doc_name_hi": "आवेदक का फोटो",
+      "mandatory": true,
+      "max_size_kb": 50,
+      "format": [
+        "JPEG"
+      ],
+      "note": "Auto-fetched during Aadhaar e-KYC with an option to update manually."
+    },
+    {
+      "doc_id": "self_declaration_form",
+      "doc_name_en": "Self-Certified Declaration Form",
+      "doc_name_hi": "स्वप्रमाणित घोषणा पत्र",
+      "mandatory": true,
+      "max_size_kb": 100,
+      "format": [
+        "JPEG",
+        "PDF"
+      ],
+      "note": "Standard government format downloadable from portal; replaces affidavit."
+    },
+    {
+      "doc_id": "address_proof",
+      "doc_name_en": "Address & Residence Proof",
+      "doc_name_hi": "राशन कार्ड की छाया प्रति अथवा बिजली का बिल",
+      "mandatory": true,
+      "max_size_kb": 100,
+      "format": [
+        "JPEG",
+        "PDF"
+      ],
+      "note": "Ration card copy or electricity bill."
+    },
+    {
+      "doc_id": "salary_slip",
+      "doc_name_en": "Latest Salary Slip / Payslip",
+      "doc_name_hi": "वेतन भोगी होने की दशा में अद्यतन वेतन पर्ची",
+      "mandatory": false,
+      "max_size_kb": 100,
+      "format": [
+        "JPEG",
+        "PDF"
+      ],
+      "note": "Mandatory only if applicant or family member is a salaried employee."
+    }
+  ],
+  "workflow_steps": [
+    {
+      "step_number": 1,
+      "action": "Portal Login",
+      "details": "User logs in with mobile number/email on edistrict.up.gov.in."
+    },
+    {
+      "step_number": 2,
+      "action": "Aadhaar e-KYC Trigger",
+      "details": "User inputs Aadhaar number and registered mobile number."
+    },
+    {
+      "step_number": 3,
+      "action": "OTP Verification",
+      "details": "User receives and submits OTP on Aadhaar-linked mobile."
+    },
+    {
+      "step_number": 4,
+      "action": "Data Auto-Fetch & Family ID Link",
+      "details": "System displays Aadhaar-verified Name, DOB, and Photo. Automatically retrieves Family ID from server."
+    },
+    {
+      "step_number": 5,
+      "action": "Form Completion & Income Breakdown",
+      "details": "User fills family member details, occupation categories (labor, salary, business, agriculture), total family income, and uploads required documents."
+    },
+    {
+      "step_number": 6,
+      "action": "Fee Payment",
+      "details": "User pays ₹30 service fee electronically."
+    },
+    {
+      "step_number": 7,
+      "action": "Field Verification",
+      "details": "Application routed to Lekhpal (Rural) or Revenue Inspector (Urban) to assess true family income."
+    },
+    {
+      "step_number": 8,
+      "action": "Issuance",
+      "details": "Tehsildar reviews field verification report and digitally approves/issues the certificate."
+    }
+  ],
+  "vector_db_chunks": [
+    {
+      "chunk_id": "up_income_cert_overview",
+      "text": "Service: Income Certificate (Aay Praman Patra), Uttar Pradesh Revenue Department. Issued by Tehsildar via eDistrict UP portal (edistrict.up.gov.in). Mandatory ₹30 fee. Requires Aadhaar e-KYC OTP authentication. Valid for both Rural and Urban residents.",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Overview & Fee",
+        "doc_id": "income_certificate_up"
+      }
+    },
+    {
+      "chunk_id": "up_income_cert_checklist",
+      "text": "Required Documents for Income Certificate (UP): 1. Applicant Photo (JPEG under 50KB, auto-fetched from Aadhaar). 2. Self-Certified Declaration Form (Swapramanit Ghoshna Patra). 3. Ration Card copy or Electricity Bill (Address Proof). 4. Latest Salary Slip / Payslip (Mandatory for salaried employees).",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Required Documents",
+        "doc_id": "income_certificate_up"
+      }
+    },
+    {
+      "chunk_id": "up_income_cert_calculation_rules",
+      "text": "Income Calculation Rules UP: Family income includes total annual income of spouse, minor/unmarried children, and dependent parents living together. EXCLUSION: Income of a widowed or abandoned woman in the family is NOT included in the family income. Verified in the field by Lekhpal (Rural) or Revenue Inspector (Urban).",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Rules & Eligibility",
+        "doc_id": "income_certificate_up"
+      }
+    },
+    {
+      "chunk_id": "up_income_cert_procedure",
+      "text": "Application Procedure & Verification: Log into edistrict.up.gov.in. Complete Aadhaar mobile OTP authentication. Auto-fetch personal details and link Family ID. Declare annual income across categories (skilled labor, agriculture, salary, pension, private business). Upload enclosures and pay ₹30 fee. Local Lekhpal or Revenue Inspector conducts field inquiry before Tehsildar issues the certificate.",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Application Procedure",
+        "doc_id": "income_certificate_up"
+      }
+    }
+  ]
+}
