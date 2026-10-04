@@ -1,0 +1,90 @@
+{
+  "service_metadata": {
+    "service_id": "up_caste_certificate",
+    "service_name_en": "Caste Certificate",
+    "service_name_hi": "जाति प्रमाण-पत्र",
+    "state": "Uttar Pradesh",
+    "source_type": "official_portal",
+    "portal_name": "eDistrict Uttar Pradesh",
+    "portal_url": "https://edistrict.up.gov.in",
+    "fee_details": {
+      "amount_inr": 30,
+      "effective_from": "2020-11-16"
+    },
+    "authentication_method": "Mandatory Aadhaar e-KYC Verification"
+  },
+  "eligibility_criteria": [
+    "Applicant must belong to SC, ST, or OBC.",
+    "Available in State (UP) and Central format.",
+    "आवेदक SC, ST, या OBC से होना चाहिए। राज्य (UP) और केंद्रीय प्रारूप में उपलब्ध है।"
+  ],
+  "required_documents_checklist": [
+    {
+      "doc_id": "applicant_photo",
+      "doc_name_en": "Passport Size Photograph",
+      "doc_name_hi": "आवेदक का फोटो",
+      "mandatory": true
+    },
+    {
+      "doc_id": "self_declaration_form",
+      "doc_name_en": "Self-Certified Declaration Form",
+      "doc_name_hi": "स्वप्रमाणित घोषणा पत्र",
+      "mandatory": true
+    },
+    {
+      "doc_id": "caste_proof",
+      "doc_name_en": "Caste Proof Recommendation",
+      "doc_name_hi": "पार्षद/वार्डन/ग्राम प्रधान का जाति के बाबत प्रमाण पत्र",
+      "mandatory": true
+    },
+    {
+      "doc_id": "address_proof",
+      "doc_name_en": "Residence and Identity Proof",
+      "doc_name_hi": "राशन कार्ड की छाया प्रति अथवा बिजली का बिल अथवा कोई भी पते का प्रमाण पत्र",
+      "mandatory": true
+    }
+  ],
+  "unknown_fields": [
+    "processing_time",
+    "application_steps",
+    "where_to_apply"
+  ],
+  "vector_db_chunks": [
+    {
+      "chunk_id": "up_caste_cert_overview",
+      "text": "Service: Caste Certificate (जाति प्रमाण-पत्र), Uttar Pradesh. Issued via eDistrict UP portal (https://edistrict.up.gov.in). Mandatory ₹30 fee. Requires Aadhaar e-KYC authentication.",
+      "metadata": {
+        "service_name": "Caste Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Overview & Fee",
+        "doc_id": "caste_certificate_up",
+        "source_type": "official_portal",
+        "source_url": "https://edistrict.up.gov.in"
+      }
+    },
+    {
+      "chunk_id": "up_caste_cert_eligibility",
+      "text": "Eligibility for Caste Certificate (UP): Applicant must belong to SC, ST, or OBC. (आवेदक SC, ST, या OBC से होना चाहिए). Available in State (UP) and Central format.",
+      "metadata": {
+        "service_name": "Caste Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Eligibility",
+        "doc_id": "caste_certificate_up",
+        "source_type": "official_portal",
+        "source_url": "https://edistrict.up.gov.in"
+      }
+    },
+    {
+      "chunk_id": "up_caste_cert_checklist",
+      "text": "Required Documents for Caste Certificate (UP): 1. Applicant Photograph (आवेदक का फोटो) 2. Self-Certified Declaration Form (स्वप्रमाणित घोषणा पत्र) 3. Caste Proof Recommendation (पार्षद/वार्डन/ग्राम प्रधान का जाति के बाबत प्रमाण पत्र) 4. Residence and Identity Proof (राशन कार्ड की छाया प्रति अथवा बिजली का बिल अथवा कोई भी पते का प्रमाण पत्र).",
+      "metadata": {
+        "service_name": "Caste Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Required Documents",
+        "doc_id": "caste_certificate_up",
+        "source_type": "official_portal",
+        "source_url": "https://edistrict.up.gov.in"
+      }
+    }
+  ]
+}

@@ -1,42 +1,29 @@
-import * as aiService from './ai.service.js';
-import { sendSuccess } from '../../utils/apiResponse.js';
+import { askSchema } from "./ai.schema.js";
+import { askService } from "./ai.service.js";
 
-export const createConversation = async (req, res, next) => {
+export async function askHandler(req, res, next) {
   try {
-    const { language, title } = req.body;
-    const result = await aiService.createConversation(req.user.id, { language, title });
-    return sendSuccess(res, 201, result);
-  } catch (error) {
-    next(error);
-  }
-};
+    const validated = askSchema.parse(req.body);
+    const result = await askService(validated);
 
-export const getConversations = async (req, res, next) => {
-  try {
-    const result = await aiService.getConversations(req.user.id);
-    return sendSuccess(res, 200, result);
-  } catch (error) {
-    next(error);
+    return res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (err) {
+    if (err.name === "ZodError") {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          details: err.errors
+        }
+      });
+    }
+    next(err);
   }
-};
+}
 
-export const getConversationById = async (req, res, next) => {
-  try {
-    const { conversationId } = req.params;
-    const result = await aiService.getConversationById(req.user.id, conversationId);
-    return sendSuccess(res, 200, result);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const askAi = async (req, res, next) => {
-  try {
-    const { conversationId } = req.params;
-    const { message, language } = req.body;
-    const result = await aiService.askAi(req.user.id, conversationId, { message, language });
-    return sendSuccess(res, 200, result);
-  } catch (error) {
-    next(error);
-  }
-};
+export async function healthHandler(req, res) {
+  return res.status(200).json({ status: "ok" });
+}
