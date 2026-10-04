@@ -1,160 +1,270 @@
-import { prisma, isDbConnected } from '../../config/db.js';
-import { logger } from '../../utils/logger.js';
+import fs from "fs";
+import path from "path";
+import { QdrantClient } from "@qdrant/js-client-rest";
+import { GoogleGenAI } from "@google/genai";
+import { aiConfig } from "../../config/ai.js";
 
-// Default pre-loaded verified knowledge base sources
-export const DEFAULT_KNOWLEDGE_SOURCES = [
+const SERVICE_PATTERNS = [
   {
-    id: 'kb-income-cert',
-    title: 'Income Certificate Guidelines',
-    sourceUrl: 'https://edistrict.up.gov.in/guidelines/income_certificate.pdf',
-    department: 'Revenue Department',
-    serviceName: 'Income Certificate',
-    content: 'आय प्रमाण पत्र (Income Certificate) जारी करने हेतु आवेदक का आधार कार्ड, राशन कार्ड/निवास प्रमाण, स्व-प्रमाणित घोषणा पत्र एवं वेतन पर्ची या आय का विवरण आवश्यक है। यह प्रमाण पत्र 3 वर्ष के लिए मान्य होता है।',
-    keywords: ['income', 'certificate', 'आय', 'प्रमाण', 'पत्र', 'revenue', 'dastavez', 'documents']
+    service_id: "up_income_certificate",
+    pattern: /income\s*certif|आय\s*प्रमाण|aay\s*praman|income\s*praman/i
   },
   {
-    id: 'kb-caste-cert',
-    title: 'Caste Certificate Guidelines',
-    sourceUrl: 'https://edistrict.up.gov.in/guidelines/caste_certificate.pdf',
-    department: 'Social Welfare Department',
-    serviceName: 'Caste Certificate',
-    content: 'जाति प्रमाण पत्र (Caste Certificate) हेतु आधार कार्ड, राशन कार्ड, परिवार के किसी सदस्य का पूर्व जाति प्रमाण पत्र या खतौनी/भू-अभिलेख आवश्यक है। यह प्रमाण पत्र आरक्षित वर्ग के लिए आजीवन मान्य होता है।',
-    keywords: ['caste', 'certificate', 'जाति', 'sc', 'st', 'obc', 'social welfare']
+    service_id: "up_caste_certificate",
+    pattern: /caste\s*certif|जाति\s*प्रमाण|jati\s*praman|caste\s*praman/i
   },
   {
-    id: 'kb-domicile-cert',
-    title: 'Domicile / Residence Certificate Guidelines',
-    sourceUrl: 'https://edistrict.up.gov.in/guidelines/domicile_certificate.pdf',
-    department: 'Revenue Department',
-    serviceName: 'Domicile Certificate',
-    content: 'मूल निवास प्रमाण पत्र (Domicile Certificate) हेतु आवेदक को राज्य में कम से कम 3 वर्ष से निरंतर निवास का प्रमाण, आधार कार्ड, बिजली बिल या मतदाता पहचान पत्र प्रस्तुत करना होता है।',
-    keywords: ['domicile', 'residence', 'निवास', 'मूल निवास', 'certificate']
-  },
-  {
-    id: 'kb-birth-cert',
-    title: 'Birth Certificate Registration Guidelines',
-    sourceUrl: 'https://crsorgi.gov.in/guidelines/birth_registration.pdf',
-    department: 'Health & Family Welfare Department',
-    serviceName: 'Birth Certificate',
-    content: 'जन्म प्रमाण पत्र (Birth Certificate) जन्म के 21 दिनों के भीतर अस्पताल डिस्चार्ज स्लिप या ग्राम प्रधान/पार्षद के सत्यापन पत्र द्वारा निःशुल्क बनाया जा सकता है। 21 दिन के पश्चात एसडीएम अनुमति आवश्यक है।',
-    keywords: ['birth', 'certificate', 'जन्म', 'hospital', 'crs']
+    service_id: "up_domicile_certificate",
+    pattern: /domicile\s*certif|निवास\s*प्रमाण|niwas\s*praman|domicile\s*praman|residence\s*certif/i
   }
 ];
 
-export const detectLanguage = (text, requestedLanguage = 'hi') => {
-  if (requestedLanguage) return requestedLanguage;
-  const isDevanagari = /[\u0900-\u097F]/.test(text);
-  return isDevanagari ? 'hi' : 'en';
-};
-
-export const normalizeQuery = (text) => {
-  return text.trim().toLowerCase().replace(/[?,.!।]/g, '');
-};
-
-export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) => {
-  let dbChunks = [];
-
-  if (prisma && isDbConnected) {
-    try {
-      dbChunks = await prisma.knowledgeBase.findMany({
-        where: {
-          verified: true
-        },
-        include: {
-          service: true
-        }
-      });
-    } catch (err) {
-      logger.warn(`[RAG Service] DB query error: ${err.message}. Using built-in verified sources.`);
+export function detectService(question) {
+  if (!question) return null;
+  for (const item of SERVICE_PATTERNS) {
+    if (item.pattern.test(question)) {
+      return item.service_id;
     }
   }
-
-  // Combine database sources with verified default knowledge sources
-  const allSources = [
-    ...DEFAULT_KNOWLEDGE_SOURCES.map(s => ({
-      id: s.id,
-      title: s.title,
-      sourceUrl: s.sourceUrl,
-      department: s.department,
-      content: s.content,
-      keywords: s.keywords,
-      serviceName: s.serviceName
-    })),
-    ...dbChunks.map(c => ({
-      id: c.id,
-      title: c.title,
-      sourceUrl: c.sourceUrl || '',
-      department: c.department,
-      content: c.content,
-      keywords: (c.title + ' ' + c.content).toLowerCase().split(' '),
-      serviceName: c.service?.name
-    }))
-  ];
-
-  // Score sources based on keyword overlap and semantic relevance
-  const queryTokens = normalizedQuery.split(/\s+/).filter(t => t.length > 2);
-  const scoredSources = allSources.map(source => {
-    let score = 0;
-    const textToMatch = `${source.title} ${source.content} ${(source.keywords || []).join(' ')}`.toLowerCase();
-
-    for (const token of queryTokens) {
-      if (textToMatch.includes(token)) {
-        score += 2;
-      }
-    }
-
-    if (source.serviceName && normalizedQuery.includes(source.serviceName.toLowerCase())) {
-      score += 5;
-    }
-
-    return { ...source, score };
-  });
-
-  scoredSources.sort((a, b) => b.score - a.score);
-
-  const filtered = scoredSources.filter(s => s.score > 0).slice(0, topK);
-
-  // If no match found by keywords, return the most prominent source as context
-  return filtered.length > 0 ? filtered : [DEFAULT_KNOWLEDGE_SOURCES[0]];
-};
-
-export const findSuggestedService = async (retrievedChunks, normalizedQuery) => {
-  let matchedServiceName = null;
-
-  for (const chunk of retrievedChunks) {
-    if (chunk.serviceName) {
-      matchedServiceName = chunk.serviceName;
-      break;
-    }
-  }
-
-  if (!matchedServiceName) {
-    if (/income|आय/i.test(normalizedQuery)) matchedServiceName = 'Income Certificate';
-    else if (/caste|जाति/i.test(normalizedQuery)) matchedServiceName = 'Caste Certificate';
-    else if (/domicile|residence|निवास/i.test(normalizedQuery)) matchedServiceName = 'Domicile Certificate';
-    else if (/birth|जन्म/i.test(normalizedQuery)) matchedServiceName = 'Birth Certificate';
-  }
-
-  if (matchedServiceName) {
-    let service = null;
-    if (prisma && isDbConnected) {
-      try {
-        service = await prisma.service.findFirst({
-          where: {
-            name: { contains: matchedServiceName, mode: 'insensitive' },
-            isActive: true
-          }
-        });
-      } catch (err) {
-        // fallback
-      }
-    }
-
-    return {
-      id: service?.id || 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-      name: matchedServiceName
-    };
-  }
-
   return null;
-};
+}
+
+export function filterChunksByService(chunks, targetServiceId) {
+  if (!chunks || chunks.length === 0) return chunks;
+
+  if (targetServiceId) {
+    const filtered = chunks.filter((c) => c.service_id === targetServiceId);
+    if (filtered.length > 0) return filtered;
+    return chunks;
+  }
+
+  const topService = chunks[0].service_id;
+  return chunks.filter((c) => c.service_id === topService);
+}
+
+export function buildSources(chunks) {
+  const seen = new Set();
+  const sources = [];
+
+  for (const c of chunks) {
+    const key = `${c.service_id}:${c.topic}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      sources.push({
+        service_id: c.service_id,
+        title: c.title || "",
+        source_url: c.source_url || null,
+        department: c.department || null,
+        topic: c.topic || "",
+        source_type: c.source_type || "official_government_portal"
+      });
+    }
+    if (sources.length >= 3) break;
+  }
+
+  return sources;
+}
+
+let qdrantClient = null;
+
+function getQdrantClient() {
+  if (!qdrantClient && aiConfig.qdrant.url) {
+    qdrantClient = new QdrantClient({
+      url: aiConfig.qdrant.url,
+      apiKey: aiConfig.qdrant.apiKey || undefined
+    });
+  }
+  return qdrantClient;
+}
+
+export async function embedQuery(text) {
+  if (!aiConfig.gemini.apiKey) return null;
+  try {
+    const aiClient = new GoogleGenAI({ apiKey: aiConfig.gemini.apiKey });
+    const response = await aiClient.models.embedContent({
+      model: aiConfig.gemini.embeddingModel || "gemini-embedding-001",
+      contents: [`query: ${text}`]
+    });
+    return response.embedding?.values || null;
+  } catch (err) {
+    console.warn("Embedding generation failed:", err.message);
+    return null;
+  }
+}
+
+let localChunksCache = null;
+
+function loadLocalChunks() {
+  if (localChunksCache) return localChunksCache;
+
+  const dataDir = path.resolve(process.cwd(), "data", "services");
+  localChunksCache = [];
+
+  if (!fs.existsSync(dataDir)) return localChunksCache;
+
+  const files = fs.readdirSync(dataDir).filter((f) => f.endsWith(".json"));
+
+  for (const file of files) {
+    try {
+      const fullPath = path.join(dataDir, file);
+      const raw = fs.readFileSync(fullPath, "utf8");
+      const json = JSON.parse(raw);
+      const meta = json.service_metadata || {};
+
+      const serviceId = meta.service_id || file.replace(".json", "");
+      const state = meta.state || "Uttar Pradesh";
+      const department = meta.department || "Government of Uttar Pradesh";
+      const title = meta.service_name_en || serviceId;
+      const sourceUrl = meta.portal_url || "https://edistrict.up.gov.in";
+
+      if (json.eligibility_criteria && Array.isArray(json.eligibility_criteria)) {
+        localChunksCache.push({
+          service_id: serviceId,
+          state,
+          source_type: "official_government_portal",
+          language: "en",
+          topic: "eligibility",
+          text: `Eligibility Criteria for ${title}:\n` + json.eligibility_criteria.map((e) => `• ${e}`).join("\n"),
+          source_ref: `${serviceId}_eligibility`,
+          score: 0.85,
+          title,
+          department,
+          source_url: sourceUrl,
+          verified: true
+        });
+      }
+
+      if (json.required_documents_checklist && Array.isArray(json.required_documents_checklist)) {
+        const docsText = json.required_documents_checklist
+          .map((d) => `• ${d.doc_name_en} (${d.doc_name_hi}): ${d.description_en || ""}`)
+          .join("\n");
+        localChunksCache.push({
+          service_id: serviceId,
+          state,
+          source_type: "official_government_portal",
+          language: "en",
+          topic: "documents",
+          text: `Required Documents Checklist for ${title}:\n${docsText}`,
+          source_ref: `${serviceId}_documents`,
+          score: 0.9,
+          title,
+          department,
+          source_url: sourceUrl,
+          verified: true
+        });
+      }
+
+      if (json.application_process_steps && Array.isArray(json.application_process_steps)) {
+        const stepsText = json.application_process_steps
+          .map((s) => `Step ${s.step_number}: ${s.title_en} - ${s.description_en}`)
+          .join("\n");
+        localChunksCache.push({
+          service_id: serviceId,
+          state,
+          source_type: "official_government_portal",
+          language: "en",
+          topic: "process",
+          text: `Application Process for ${title}:\n${stepsText}`,
+          source_ref: `${serviceId}_process`,
+          score: 0.8,
+          title,
+          department,
+          source_url: sourceUrl,
+          verified: true
+        });
+      }
+
+      if (json.faqs && Array.isArray(json.faqs)) {
+        for (const faq of json.faqs) {
+          localChunksCache.push({
+            service_id: serviceId,
+            state,
+            source_type: "official_government_portal",
+            language: "en",
+            topic: faq.category || "faq",
+            text: `Q: ${faq.question_en} (${faq.question_hi})\nA: ${faq.answer_en}`,
+            source_ref: `${serviceId}_faq_${faq.faq_id}`,
+            score: 0.75,
+            title,
+            department,
+            source_url: sourceUrl,
+            verified: true
+          });
+        }
+      }
+    } catch (err) {
+      console.warn(`Failed reading local knowledge file ${file}:`, err.message);
+    }
+  }
+
+  return localChunksCache;
+}
+
+function retrieveLocal(question, state, topK = 5) {
+  const allLocal = loadLocalChunks();
+  const qLower = question.toLowerCase();
+
+  const words = qLower.match(/[a-z0-9\u0900-\u097F]+/g) || [];
+
+  const scored = allLocal
+    .filter((c) => c.state.toLowerCase() === state.toLowerCase() && c.verified)
+    .map((c) => {
+      const textLower = c.text.toLowerCase();
+      let matchCount = 0;
+      for (const w of words) {
+        if (w.length > 2 && textLower.includes(w)) {
+          matchCount++;
+        }
+      }
+      const score = Math.min(0.95, 0.4 + (matchCount / (words.length || 1)) * 0.55);
+      return { ...c, score };
+    });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, topK);
+}
+
+export async function retrieve(question, state = "Uttar Pradesh", topK = 5) {
+  const client = getQdrantClient();
+  const vector = await embedQuery(question);
+
+  if (client && vector) {
+    try {
+      const searchRes = await client.search(aiConfig.qdrant.collection, {
+        vector,
+        limit: topK,
+        filter: {
+          must: [
+            { key: "state", match: { value: state } },
+            { key: "verified", match: { value: true } }
+          ]
+        },
+        with_payload: true
+      });
+
+      if (searchRes && searchRes.length > 0) {
+        return searchRes.map((hit) => {
+          const p = hit.payload || {};
+          return {
+            service_id: p.service_id || "",
+            state: p.state || "",
+            source_type: p.source_type || "official_government_portal",
+            language: p.language || "en",
+            topic: p.topic || p.section || "",
+            text: p.text || "",
+            source_ref: p.source_ref || "",
+            score: typeof hit.score === "number" ? hit.score : 0.8,
+            title: p.title || "",
+            department: p.department || null,
+            source_url: p.source_url || null,
+            verified: Boolean(p.verified)
+          };
+        });
+      }
+    } catch (err) {
+      console.warn("Qdrant search failed, falling back to local search:", err.message);
+    }
+  }
+
+  return retrieveLocal(question, state, topK);
+}
