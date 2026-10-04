@@ -133,14 +133,7 @@ function loadLocalChunks() {
 
   const dataDir = path.resolve(process.cwd(), "data", "services");
 
-const STOPWORDS = new Set([
-  'the', 'for', 'and', 'how', 'can', 'what', 'are', 'you', 'with', 'need',
-  'want', 'get', 'make', 'please', 'tell', 'about',
-  'मुझे', 'कौन', 'चाहिए', 'क्या', 'कैसे', 'करना'
-]);
-
-export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) => {
-  let dbChunks = [];
+  localChunksCache = [];
 
   if (!fs.existsSync(dataDir)) return localChunksCache;
 
@@ -297,42 +290,38 @@ export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) =>
     }
   }
 
-  // Combine database sources with verified default knowledge sources
-  const allSources = [
-    ...DEFAULT_KNOWLEDGE_SOURCES.map(s => ({
-      id: s.id,
-      title: s.title,
-      sourceUrl: s.sourceUrl,
-      department: s.department,
-      content: s.content,
-      keywords: s.keywords,
-      serviceName: s.serviceName
-    })),
-    ...dbChunks.map(c => ({
-      id: c.id,
-      title: c.title,
-      sourceUrl: c.sourceUrl || '',
-      department: c.department,
-      content: c.content,
-      keywords: (c.title + ' ' + c.content).toLowerCase().split(' '),
-      serviceName: c.service?.name
-    }))
-  ];
+  return localChunksCache;
+}
 
-  const seen = new Set();
-  const uniqueSources = allSources.filter(s => !seen.has(s.id) && seen.add(s.id));
+function retrieveLocal(
+  question,
+  state,
+  topK = 5,
+  targetServiceId = null
+) {
+  const allLocal = loadLocalChunks();
+  const qLower = question.toLowerCase();
 
-  // Score sources based on keyword overlap and semantic relevance
-    const queryTokens = normalizedQuery
-    .split(/\s+/)
-    .filter(t => t.length > 2 && !STOPWORDS.has(t));
-    const scoredSources = uniqueSources.map(source => {
-    let score = 0;
-    const textToMatch = `${source.title} ${source.content} ${(source.keywords || []).join(' ')}`.toLowerCase();
+  const words =
+    qLower.match(/[a-z0-9\u0900-\u097F]+/g) || [];
 
-    for (const token of queryTokens) {
-      if (textToMatch.includes(token)) {
-        score += 2;
+  const scored = allLocal
+    .filter(
+      (c) =>
+        c.state.toLowerCase() === state.toLowerCase() &&
+        c.verified &&
+        (!targetServiceId ||
+          c.service_id === targetServiceId)
+    )
+    .map((c) => {
+      const textLower = c.text.toLowerCase();
+
+      let matchCount = 0;
+
+      for (const w of words) {
+        if (w.length > 2 && textLower.includes(w)) {
+          matchCount++;
+        }
       }
 
       const score = Math.min(
@@ -349,9 +338,12 @@ export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) =>
   return scored.slice(0, topK);
 }
 
-    // No verified source matched: return nothing instead of a wrong document
-  return filtered;
-};
+export async function retrieve(
+  question,
+  state = "Uttar Pradesh",
+  topK = 5
+) {
+  const detectedService = detectService(question);
 
   console.log("RAG QUESTION:", question);
   console.log("RAG DETECTED SERVICE:", detectedService);
