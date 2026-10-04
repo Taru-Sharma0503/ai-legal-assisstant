@@ -1,11 +1,15 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is missing. Add it to backend/.env');
+}
+
 export const env = {
   PORT: process.env.PORT ? parseInt(process.env.PORT, 10) : 5000,
   NODE_ENV: process.env.NODE_ENV || 'development',
   DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ailegal?schema=public',
-  JWT_SECRET: process.env.JWT_SECRET || 'ai-legal-assistant-secure-jwt-secret-key-2026',
+  JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
 

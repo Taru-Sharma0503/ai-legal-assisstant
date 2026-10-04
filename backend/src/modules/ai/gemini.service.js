@@ -1,5 +1,74 @@
-import { GoogleGenAI } from "@google/genai";
-import { aiConfig } from "../../config/ai.js";
+import { aiClient, AI_CONFIG } from '../../config/ai.js';
+import { logger } from '../../utils/logger.js';
+
+/**
+ * Builds structured response using Google GenAI or intelligent fallback
+ */
+export const generateGroundedResponse = async ({
+  query,
+  language,
+  retrievedChunks,
+  suggestedService = null
+}) => {
+  const contextString = retrievedChunks
+    .map((chunk, index) => `[Source ${index + 1} - ${chunk.title} (${chunk.department})]\n${chunk.content}`)
+    .join('\n\n');
+
+      // No verified source matched: don't let Gemini guess, hand off to a human
+  if (retrievedChunks.length === 0) {
+    return generateFallbackResponse({ query, language, retrievedChunks, suggestedService });
+  }
+
+  const prompt = `You are an AI Citizen Legal Assistant.
+Language requested: ${language}
+
+Retrieved Verified Sources:
+${contextString || 'No specific sources found in the database.'}
+
+Suggested Service Identified:
+${suggestedService ? `${suggestedService.name} (ID: ${suggestedService.id})` : 'None'}
+
+User Question:
+"${query.replace(/"/g, '\\"')}"
+
+INSTRUCTIONS:
+1. Provide a comprehensive, clear, and empathetic answer strictly in the requested language (${language}).
+2. Include all necessary details from verified sources: eligibility, documents needed, fees, processing times, and steps.
+3. Calculate a confidence score between 0.00 and 1.00 based on how well the verified sources answer the query.
+4. If confidence is below 0.65 or if the user is asking about an intractable court dispute, property litigation, criminal matter, or human intervention, set needsHuman to true. Otherwise false.
+5. Return ONLY a valid JSON object strictly matching this format without any markdown or code blocks:
+{
+  "answer": "...",
+  "confidence": 0.91,
+  "needsHuman": false
+}`;
+
+  if (aiClient) {
+    try {
+      const response = await aiClient.models.generateContent({
+        model: AI_CONFIG.model,
+        contents: prompt,
+        config: {
+          temperature: AI_CONFIG.temperature,
+          topP: AI_CONFIG.topP,
+          systemInstruction: AI_CONFIG.systemInstruction
+        }
+      });
+
+      let text = response.text || '';
+      // Clean possible markdown code fences
+      text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+      const parsed = JSON.parse(text);
+      return {
+        answer: parsed.answer || text,
+        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.85,
+        needsHuman: Boolean(parsed.needsHuman)
+      };
+    } catch (err) {
+      logger.warn(`[Gemini API] Failed call: ${err.message}. Using high-quality grounded fallback.`);
+    }
+  }
 
 const NEEDS_HUMAN_TAG = "NEEDS_HUMAN";
 

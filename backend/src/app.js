@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import path from 'path';
+import fileRoutes from './modules/applications/file.routes.js';
 
 // Error handling middleware
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
@@ -32,9 +32,8 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Serve uploaded documents statically
-const uploadDir = path.resolve(process.cwd(), 'uploads');
-app.use('/uploads', express.static(uploadDir));
+// Uploaded documents are private: only the owner or staff can download them
+app.use('/uploads', fileRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {

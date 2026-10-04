@@ -2,6 +2,7 @@ import * as applicationService from './application.service.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 import { ApiError } from '../../utils/apiError.js';
 import { getFileUrl } from '../../utils/upload.js';
+import fs from 'fs';
 
 export const createApplication = async (req, res, next) => {
   try {
@@ -58,6 +59,7 @@ export const uploadDocument = async (req, res, next) => {
 
     return sendSuccess(res, 200, result);
   } catch (error) {
+    if (req.file) fs.unlink(req.file.path, () => {});
     next(error);
   }
 };

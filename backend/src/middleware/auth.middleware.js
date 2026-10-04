@@ -2,6 +2,15 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { ApiError } from '../utils/apiError.js';
 import { prisma, isDbConnected } from '../config/db.js';
+import { mockUsers } from '../modules/auth/auth.service.js';
+
+const userFields = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  preferredLanguage: true
+};
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -17,36 +26,27 @@ export const authenticate = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, env.JWT_SECRET);
+      decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] });
     } catch (err) {
       throw ApiError.unauthorized('Invalid or expired authentication token');
     }
 
-    const userId = decoded.sub || decoded.id;
+    const userId = decoded.sub;
     if (!userId) {
       throw ApiError.unauthorized('Invalid token payload');
     }
 
+    // The user must exist. The role always comes from the DB, never from the token.
     let user = null;
     if (prisma && isDbConnected) {
       try {
-        user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            preferredLanguage: true
-          }
-        });
+        user = await prisma.user.findUnique({ where: { id: userId }, select: userFields });
       } catch (dbErr) {
-        // Fallback
+        // fall through to the in-memory store
       }
     }
 
     if (!user) {
-      const { mockUsers } = await import('../modules/auth/auth.service.js');
       for (const u of mockUsers.values()) {
         if (u.id === userId) {
           user = {
@@ -62,13 +62,7 @@ export const authenticate = async (req, res, next) => {
     }
 
     if (!user) {
-      user = {
-        id: userId,
-        role: decoded.role || 'CITIZEN',
-        name: decoded.name || 'Taru Sharma',
-        email: decoded.email || '',
-        preferredLanguage: decoded.preferredLanguage || 'hi'
-      };
+      throw ApiError.unauthorized('User no longer exists');
     }
 
     req.user = user;

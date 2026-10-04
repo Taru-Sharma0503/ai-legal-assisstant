@@ -36,11 +36,10 @@ function fallbackFromChunks(chunks, language) {
     }
   }
 
-  const prefix = {
-    en: "According to the Uttar Pradesh eDistrict information:\n\n",
-    hi: "उत्तर प्रदेश ई-डिस्ट्रिक्ट की जानकारी के अनुसार:\n\n",
-    hinglish: "Uttar Pradesh eDistrict ki information ke according:\n\n"
-  };
+    if (!conversation) {
+    const mock = mockConversations.get(conversationId);
+    if (mock && mock.userId === userId) conversation = mock;
+  }
 
   const answerBody = uniqueTexts.map((t) => `• ${t}`).join("\n\n");
   const answer = (prefix[language] || prefix.en) + answerBody;
@@ -50,68 +49,28 @@ function fallbackFromChunks(chunks, language) {
     needs_human: false,
     generation_status: "fallback"
   };
-}
+};
 
-export async function askService({ question, state = "Uttar Pradesh", language = "auto", conversationHistory = [] }) {
-  const lang = language === "auto" ? detectLanguage(question) : language;
-
-  if (touchesUnknownField(question)) {
-    return {
-      answer: UNKNOWN_FIELD_MSG[lang] || UNKNOWN_FIELD_MSG.en,
-      needs_human: true,
-      needsHuman: true,
-      generation_status: "guardrail",
-      confidence: 0,
-      retrieval_score: 0,
-      sources: [],
-      suggested_service_id: null,
-      suggestedService: null,
-      language_used: lang,
-      language: lang
-    };
+export const askAi = async (userId, conversationId, { message, language }) => {
+    // 1. The conversation must exist AND belong to this user
+  let conversation = null;
+  if (prisma && isDbConnected) {
+    try {
+      conversation = await prisma.aiConversation.findFirst({
+        where: { id: conversationId, userId }
+      });
+    } catch (err) {
+      // fallback
+    }
   }
 
-  const chunks = await retrieve(question, state);
-
-  if (!chunks || chunks.length === 0) {
-    return {
-      answer: LOW_CONF_MSG[lang] || LOW_CONF_MSG.en,
-      needs_human: true,
-      needsHuman: true,
-      generation_status: "guardrail",
-      confidence: 0,
-      retrieval_score: 0,
-      sources: [],
-      suggested_service_id: null,
-      suggestedService: null,
-      language_used: lang,
-      language: lang
-    };
+  if (!conversation) {
+    const mock = mockConversations.get(conversationId);
+    if (mock && mock.userId === userId) conversation = mock;
   }
 
-  const detectedService = detectService(question);
-  const filteredChunks = filterChunksByService(chunks, detectedService);
-
-  const rawScore = filteredChunks[0]?.score || 0;
-  const confidence = Math.round(rawScore * 10000) / 10000;
-
-  const suggestedServiceId = confidence >= SIMILARITY_THRESHOLD ? filteredChunks[0].service_id : null;
-  const sources = buildSources(filteredChunks);
-
-  if (confidence < SIMILARITY_THRESHOLD) {
-    return {
-      answer: LOW_CONF_MSG[lang] || LOW_CONF_MSG.en,
-      needs_human: true,
-      needsHuman: true,
-      generation_status: "guardrail",
-      confidence,
-      retrieval_score: confidence,
-      sources,
-      suggested_service_id: null,
-      suggestedService: null,
-      language_used: lang,
-      language: lang
-    };
+  if (!conversation) {
+    throw ApiError.notFound('Conversation not found');
   }
 
   let genResult = null;
