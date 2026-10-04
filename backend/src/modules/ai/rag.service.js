@@ -1,3 +1,4 @@
+import { INITIAL_SERVICES } from '../services/service.service.js';
 import { prisma, isDbConnected } from '../../config/db.js';
 import { logger } from '../../utils/logger.js';
 
@@ -97,11 +98,14 @@ export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) =>
     }))
   ];
 
+  const seen = new Set();
+  const uniqueSources = allSources.filter(s => !seen.has(s.id) && seen.add(s.id));
+
   // Score sources based on keyword overlap and semantic relevance
     const queryTokens = normalizedQuery
     .split(/\s+/)
     .filter(t => t.length > 2 && !STOPWORDS.has(t));
-  const scoredSources = allSources.map(source => {
+    const scoredSources = uniqueSources.map(source => {
     let score = 0;
     const textToMatch = `${source.title} ${source.content} ${(source.keywords || []).join(' ')}`.toLowerCase();
 
@@ -158,8 +162,9 @@ export const findSuggestedService = async (retrievedChunks, normalizedQuery) => 
       }
     }
 
+    const fallback = INITIAL_SERVICES.find(s => s.name === matchedServiceName);
     return {
-      id: service?.id || 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      id: service?.id || fallback?.id || null,
       name: matchedServiceName
     };
   }
