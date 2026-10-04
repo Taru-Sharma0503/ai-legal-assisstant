@@ -299,8 +299,11 @@ const runTests = async () => {
     // In our auth service we can mock admin role by generating token or registering
     const jwt = (await import('jsonwebtoken')).default;
     const { env } = await import('./src/config/env.js');
-    const adminToken = jwt.sign({ sub: 'admin-uuid', role: 'ADMIN', name: 'Admin', email: 'admin@legal.gov.in' }, env.JWT_SECRET);
-    const agentToken = jwt.sign({ sub: 'agent-uuid', role: 'AGENT', name: 'Agent', email: 'agent@legal.gov.in' }, env.JWT_SECRET);
+    const { mockUsers } = await import('./src/modules/auth/auth.service.js');
+    mockUsers.set('admin@legal.gov.in', { id: 'admin-uuid', name: 'Admin', email: 'admin@legal.gov.in', role: 'ADMIN', preferredLanguage: 'en' });
+    mockUsers.set('agent@legal.gov.in', { id: 'agent-uuid', name: 'Agent', email: 'agent@legal.gov.in', role: 'AGENT', preferredLanguage: 'en' });
+    const adminToken = jwt.sign({ sub: 'admin-uuid', role: 'ADMIN' }, env.JWT_SECRET);
+    const agentToken = jwt.sign({ sub: 'agent-uuid', role: 'AGENT' }, env.JWT_SECRET);
 
     // 21. Admin: Get Escalation Queue (Section 30)
     const adminQueueRes = await request('/api/v1/admin/escalations', {

@@ -319,11 +319,14 @@ export const retrieveTopKChunks = async (normalizedQuery, language, topK = 3) =>
     }))
   ];
 
+  const seen = new Set();
+  const uniqueSources = allSources.filter(s => !seen.has(s.id) && seen.add(s.id));
+
   // Score sources based on keyword overlap and semantic relevance
     const queryTokens = normalizedQuery
     .split(/\s+/)
     .filter(t => t.length > 2 && !STOPWORDS.has(t));
-  const scoredSources = allSources.map(source => {
+    const scoredSources = uniqueSources.map(source => {
     let score = 0;
     const textToMatch = `${source.title} ${source.content} ${(source.keywords || []).join(' ')}`.toLowerCase();
 
