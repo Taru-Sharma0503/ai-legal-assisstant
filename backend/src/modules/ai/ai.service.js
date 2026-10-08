@@ -69,10 +69,10 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   //       In-scope min: 0.70 (all regex-routed, threshold irrelevant)
   //       OOS max:      0.74 (no regex match, strict threshold needed)
   const regexService = detectService(question);
-  const NON_REGEX_THRESHOLD = 0.75; // above highest observed OOS score (0.74)
-  const threshold = retrievalSource === 'qdrant'
-    ? (regexService ? aiConfig.similarityThreshold : NON_REGEX_THRESHOLD)
-    : 0.3; // local fallback always uses 0.3
+  const NON_REGEX_THRESHOLD = 0.76; // above highest observed OOS score (0.750 in local fallback, 0.740 in Qdrant)
+  const threshold = regexService
+    ? (retrievalSource === 'qdrant' ? aiConfig.similarityThreshold : Math.min(aiConfig.similarityThreshold, 0.3))
+    : Math.max(NON_REGEX_THRESHOLD, aiConfig.similarityThreshold);
 
   // If regex matched, filter by that service; otherwise candidate is all retrieved chunks
   const candidateChunks = regexService ? filterChunksByService(chunks, regexService) : chunks;
