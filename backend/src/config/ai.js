@@ -47,6 +47,8 @@ if (env.QDRANT_URL) {
   } catch (error) {
     console.warn('[AI] Failed to initialize QdrantClient:', error.message);
   }
+} else {
+  console.error('[AI] QDRANT_URL is not set. Set it to your hosted Qdrant cluster URL in backend/.env');
 }
 
 export const AI_CONFIG = {
@@ -74,6 +76,13 @@ export const aiConfig = {
     url: env.QDRANT_URL,
     apiKey: env.QDRANT_API_KEY,
     collection: env.QDRANT_COLLECTION || 'citizen_service_chunks'
+  },
+  get similarityThreshold() {
+    return process.env.SIMILARITY_THRESHOLD ? parseFloat(process.env.SIMILARITY_THRESHOLD) : (env.SIMILARITY_THRESHOLD ?? 0.30);
+  },
+  timeoutMs: env.AI_REQUEST_TIMEOUT_MS ?? 15000,
+  get allowLocalFallback() {
+    return (process.env.RAG_ALLOW_LOCAL_FALLBACK ?? String(env.RAG_ALLOW_LOCAL_FALLBACK ?? 'true')).toLowerCase() !== 'false';
   }
 };
 
