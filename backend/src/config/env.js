@@ -22,7 +22,7 @@ export const env = {
   GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
 
   // Qdrant
-  QDRANT_URL: process.env.QDRANT_URL || 'http://localhost:6333',
+  QDRANT_URL: process.env.QDRANT_URL || '',
   QDRANT_API_KEY: process.env.QDRANT_API_KEY || '',
   QDRANT_COLLECTION: process.env.QDRANT_COLLECTION || 'citizen_service_chunks',
   SIMILARITY_THRESHOLD: process.env.SIMILARITY_THRESHOLD ? parseFloat(process.env.SIMILARITY_THRESHOLD) : 0.30,
@@ -32,5 +32,8 @@ export const env = {
   MAX_FILE_SIZE_MB: process.env.MAX_FILE_SIZE_MB ? parseInt(process.env.MAX_FILE_SIZE_MB, 10) : 10,
   ALLOWED_FILE_EXTENSIONS: (process.env.ALLOWED_FILE_EXTENSIONS || 'pdf,jpg,jpeg,png,doc,docx').split(','),
   RATE_LIMIT_AI_MAX: process.env.RATE_LIMIT_AI_MAX ? parseInt(process.env.RATE_LIMIT_AI_MAX, 10) : 10,
-  RATE_LIMIT_AI_WINDOW_SECONDS: process.env.RATE_LIMIT_AI_WINDOW_SECONDS ? parseInt(process.env.RATE_LIMIT_AI_WINDOW_SECONDS, 10) : 60
+  RATE_LIMIT_AI_WINDOW_SECONDS: process.env.RATE_LIMIT_AI_WINDOW_SECONDS ? parseInt(process.env.RATE_LIMIT_AI_WINDOW_SECONDS, 10) : 60,
+
+  // RAG behaviour
+  RAG_ALLOW_LOCAL_FALLBACK: (process.env.RAG_ALLOW_LOCAL_FALLBACK ?? 'true').toLowerCase() !== 'false'
 };

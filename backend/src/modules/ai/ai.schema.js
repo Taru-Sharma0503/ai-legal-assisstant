@@ -19,3 +19,32 @@ export const askResponseSchema = z.object({
     language_used: z.string()
   })
 });
+
+export const createConversationSchema = z.object({
+  language: z.enum(["auto", "en", "hi", "hinglish"]).optional().default("en"),
+  title: z.string().optional()
+});
+
+export const conversationIdParamSchema = z.object({
+  conversationId: z.string().uuid("conversationId must be a valid UUID")
+});
+
+export const postMessageSchema = z.object({
+  question: z.string().optional(),
+  message: z.string().optional(),
+  language: z.enum(["auto", "en", "hi", "hinglish"]).optional()
+}).transform((data, ctx) => {
+  const q = data.question || data.message;
+  if (!q || q.trim().length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Question or message is required"
+    });
+    return z.NEVER;
+  }
+  return {
+    question: q,
+    language: data.language
+  };
+});
+

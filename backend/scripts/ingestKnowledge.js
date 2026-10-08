@@ -1,181 +1,273 @@
+/**
+ * scripts/ingestKnowledge.js
+ *
+ * Ingests all service JSON files from data/services/ into Qdrant.
+ * Usage: npm run ingest
+ *
+ * Requires:
+ *   GEMINI_API_KEY – for embedding
+ *   QDRANT_URL     – hosted Qdrant cluster URL
+ *   QDRANT_API_KEY – hosted Qdrant cluster API key
+ *
+ * If Qdrant is not reachable, the script exits with diagnostic error.
+ * If embedding fails, the script exits non-zero.
+ *
+ * Idempotent: recreates the collection on every run, so re-runs never duplicate.
+ */
+
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { GoogleGenAI } from '@google/genai';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { prisma, isDbConnected } from '../src/config/db.js';
 import { env } from '../src/config/env.js';
-import { logger } from '../src/utils/logger.js';
+import { buildChunks } from '../src/modules/ai/chunkBuilder.js';
 
 const SERVICES_DIR = path.resolve(process.cwd(), 'data/services');
 const COLLECTION_NAME = env.QDRANT_COLLECTION || 'citizen_service_chunks';
+const EMBEDDING_MODEL = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
+const BATCH_SIZE = 5;           // texts per embedContent call
+const BATCH_DELAY_MS = 500;     // delay between batches
+const MAX_RETRIES = 3;
 
-async function embedText(aiClient, text) {
+// ── Stable deterministic ID from source_ref ────────────────────────────────
+function stableId(sourceRef) {
+  // Produce a 53-bit safe integer from SHA-256 of the source_ref string
+  const hash = crypto.createHash('sha256').update(sourceRef, 'utf8').digest();
+  // Read first 6 bytes as big-endian, mask to 53 bits for JS safety
+  const high = hash.readUInt32BE(0);
+  const low = hash.readUInt16BE(4);
+  return (high * 65536 + low) % Number.MAX_SAFE_INTEGER;
+}
+
+// ── Sleep helper ────────────────────────────────────────────────────────────
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── Embed a batch of texts (with retry) ────────────────────────────────────
+async function embedBatch(aiClient, texts) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await aiClient.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: texts,
+        config: { taskType: 'RETRIEVAL_DOCUMENT' }
+      });
+
+      // SDK returns EmbedContentResponse: { embeddings?: ContentEmbedding[] }
+      // ContentEmbedding: { values?: number[] }
+      const embeddings = res.embeddings;
+      if (!embeddings || embeddings.length !== texts.length) {
+        throw new Error(
+          `Expected ${texts.length} embeddings, got ${embeddings?.length ?? 0}`
+        );
+      }
+      return embeddings.map((e) => e.values);
+    } catch (err) {
+      const isRetryable =
+        err.status === 429 ||
+        err.status === 503 ||
+        err.message?.includes('429') ||
+        err.message?.includes('503');
+
+      if (isRetryable && attempt < MAX_RETRIES) {
+        const delay = BATCH_DELAY_MS * Math.pow(2, attempt);
+        console.warn(
+          `[Ingest] Embedding attempt ${attempt} failed (${err.message}). Retrying in ${delay}ms…`
+        );
+        await sleep(delay);
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+// ── Main ingestion routine ─────────────────────────────────────────────────
+async function runIngestion() {
+  console.log('\n=== RAG KNOWLEDGE INGESTION ===\n');
+
+  // 1. Validate Gemini key
+  if (!env.GEMINI_API_KEY) {
+    console.error('[Ingest] ERROR: GEMINI_API_KEY is not set in .env. Aborting.');
+    process.exit(1);
+  }
+
+  // 2. Validate Qdrant connectivity
+  if (!env.QDRANT_URL) {
+    console.error('[Ingest] ERROR: QDRANT_URL is not set. Aborting.');
+    process.exit(1);
+  }
+
+  const qdrantClient = new QdrantClient({
+    url: env.QDRANT_URL,
+    apiKey: env.QDRANT_API_KEY || undefined,
+    checkCompatibility: false
+  });
+
+  let qdrantHost = env.QDRANT_URL;
   try {
-    const res = await aiClient.models.embedContent({
-      model: env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
-      contents; text
-    });
-    return res?.embedding?.values || null;
+    const parsed = new URL(env.QDRANT_URL);
+    qdrantHost = parsed.host;
+  } catch {
+    // keep as is
+  }
+
+  try {
+    await qdrantClient.getCollections();
+    console.log(`[Ingest] Connected to hosted Qdrant cluster at ${qdrantHost}`);
   } catch (err) {
-    logger.warn("[Ingestion] Embedding error: " + err.message);
-    return null;
-  }
-}
-
-function extractServiceMeta(svc) {
-  const meta = svc.service_metadata || {};
-  const service_id = meta.service_id || svc.service_id || 'unknown';
-  const name_en = meta.service_name_en || svc.name_en || '';
-  const name_hi = meta.service_name_hi || svc.name_hi || '';
-  const department = meta.department || svc.department || null;
-  const source_url = meta.portal_page_url || meta.portal_url || meta.govt_order_link || meta.form_link || svc.portal_page_url || svc.portal_url || svc.source_url || null;
-  const source_type = meta.source_type || svc.source_type || 'official_portal';
-  const verified = source_type.startsWith('official');
-
-  return {
-    service_id,
-    name_en,
-    name_hi,
-    department,
-    source_url,
-    source_type,
-    verified
-};
-}
-
-function buildChunksFromSvc(svc, fileName) {
-  const meta = extractServiceMeta(svc);
-
-  if (Array.isArray(svc.vector_db_chunks)) {
-    return svc.vector_db_chunks.map(c => {
-      const chunkMeta = c.metadata || {};
-      const lang = chunkMeta.language || 'en';
-      const title = (lang === 'hi' && meta.name_hi) ? meta.name_hi : meta.name_en;
-
-      return {
-        service_id: meta.service_id,
-        state: chunkMeta.state || svc.state || 'Uttar Pradesh',
-        source_type: meta.source_type,
-        source_ref: fileName,
-        department: meta.department,
-        source_url: chunkMeta.source_url || meta.source_url,
-        verified: meta.verified,
-        topic: chunkMeta.topic || chunkMeta.section || 'general',
-        language: lang,
-        text: c.text,
-        title
-      };
-    });
+    console.error(
+      `[Ingest] ERROR: Cannot reach Qdrant at ${qdrantHost}. Check QDRANT_URL and QDRANT_API_KEY in backend/.env and that your hosted cluster is running.`
+    );
+    process.exit(1);
   }
 
-  const base = {
-    service_id: meta.service_id,
-    state: svc.state || 'Uttar Pradesh',
-    source_type: meta.source_type,
-    source_ref: fileName,
-    department: meta.department,
-    source_url: meta.source_url,
-    verified: meta.verified
-  };
-
-  const chunks = [];
-  if (svc.service_fee) {
-    const amt = svc.service_fee.amount_inr;
-    chunks.push({
-      ...base,
-      topic: 'fee',
-      language: 'en',
-      title: meta.name_en,
-      text: `The government fee for ${meta.name_en} in ${svc.state || 'Uttar Pradesh'} is ₹${amt}.`
-    });
-  }
-
-if (Array.isArray(svc.documents)) {
-    const reqEF = svc.documents.filter(d => d.required).map(d => `‡ ${d.en} (required)`).join('\n');
-    chunks.push({
-      ...base,
-      topic: 'documents',
-      language: 'en',
-      title: meta.name_en,
-      text: `Documents required for ${meta.name_en} in ${svc.state || 'Uttar Pradesh'}:\n${reqEF}`
-    });
-  }
-
-  return chunks;
-}
-
-export async function runIngestion() {
-  console.log('--- STARTING RAG KNOWLEDGE INGESTION ---');
+  // 3. Load and build chunks from all JSON files
   if (!fs.existsSync(SERVICES_DIR)) {
-    console.error(`Services directory not found: ${SERVICES_DIR}`);
-    return;
+    console.error(`[Ingest] Services directory not found: ${SERVICES_DIR}`);
+    process.exit(1);
   }
 
-  const files = fs.readdirSync(SERVICES_DIR).filter(f => f.withs('.json'));
-  console.log(`Found ${files.length} service JSON files in ${SERVICES_DIR}`);
+  const files = fs.readdirSync(SERVICES_DIR).filter((f) => f.endsWith('.json'));
+  console.log(`[Ingest] Found ${files.length} service JSON files\n`);
 
-  let aiClient = null;
-  if (env.GEMINI_API_KEY) {
-    aiClient = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-  }
-
-  let qdrantClient = null;
-  if (env.QDRANT_URL) {
-    qdrantClient = new QdrantClient({ url: env.QDRANT_URL, apiKey: env.QDRANT_API_KEY || undefined });
-  }
-
-  let totalSources = 0;
-  let totalChunks = 0;
-  let pointsUpserted = 0;
-
-  let firstVectorDim = 768;
-  const qdrantPoints = [];
+  const allChunks = [];
+  const fileSummary = [];
 
   for (const fileName of files) {
     const filePath = path.join(SERVICES_DIR, fileName);
-    const svc = JSON.parse(fs.readF�[T�[���[T]	�]�	�JN�ۜ�Y]HH^�X��\��X�SY]Jݘ�N��ۜ��K�������\��[�Έ	ٚ[S�[Y_H
-	�Y]K��\��X�W�YJX
-N�ۜ��[�Y[�Hؚ�X��[��Y\�Y]JK��[\�
-���JHO��OOH�[
-K�X\
+    let svc;
+    try {
+      svc = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (err) {
+      console.error(`[Ingest] Failed to parse ${fileName}: ${err.message}`);
+      process.exit(1);
+    }
 
-��JHO��N�ۜ��K����[Y]Y]H�Y[Έ	۝[�Y[˛[����[�Y[˚��[�	�	�H�	ۛۙI�X
-N��[��\��\����]���\��RYHܞ\˜�[��UURQ
+    const chunks = buildChunks(svc, fileName);
+    allChunks.push(...chunks);
+    fileSummary.push({ fileName, count: chunks.length });
+    console.log(`  ${fileName.padEnd(42)} ${chunks.length} chunks`);
+  }
 
-NY�
-�\�XH	��\���ۛ�X�Y
-H�H�ۜ���\��T�X�ܙH]�Z]�\�XK�ۛ��Y�T��\��K�\�\�
-�\�N��Y����\��RYK�\]N�]N�Y]K��[YW�[��\\�Y[��Y]K�\\�Y[����\��W�\��Y]K���\��W�\����\��W�\N�Y]K���\��W�\K��\�Y�YY�Y]K��\�Y�YY��\��X�W��YΈY]K��\��X�W�Y�K�ܙX]N�Y����\��RY�]N�Y]K��[YW�[��\\�Y[��Y]K�\\�Y[���\��X�W�\��Y]K���\��W�\���\��X�W�\N�Y]K���\��W�\K��\�Y�YY�Y]K��\�Y�YY��\��X�W��YΈY]K��\��X�W�Y�B�JN���\��RYH��\��T�X�ܙ�YH�]�
-\��H���\���\����[��\�[ۗH�ۛ��Y�T��\��H\�\���\Y��
-�\���Y\��Y�JNB�B���ۜ��[���H�Z[�[��ќ��Tݘ�ݘ��[S�[YJN�[�[���
-�H�[��˛[����܈
-�ۜ��[��و�[���H�ۜ��[��YHܞ\˜�[��UURQ
+  console.log(`\n[Ingest] Total chunks to embed: ${allChunks.length}`);
 
-N�Y�
-�\�XH	��\���ۛ�X�Y
-H�H]�Z]�\�XK�ۛ��Y�P�[�˘ܙX]J]N�Y��[��Y���\��W�Y����\��RY��XΈ�[�˝�X��[��XY�N��[�˛[��XY�K�^��[�˝^��Y�[ێ��[�˜�]K��\�Y�YY��[�˝�\�Y�YY�B�JNH�]�
-\��H�����\Y�B�B��Y�
-ZP�Y[�
-H�ۜ��X�܈H]�Z][X�Y^
-ZP�Y[�\��Y�N�	��[�˝^X
-NY�
-�X�܊H�\���X�ܑ[HH�X�܋�[��Y�[��[�˜\�
-Y��[��Y��X�܋�^[�Y��[��Y���\��RY����\��RY��\��X�W�Y��[�˜�\��X�W�Y��\��X�RY��[�˜�\��X�W�Y�]N��[�˝]K�\\�Y[���[�˙\\�Y[����\��W�\���[�˜��\��W�\����\��U\���[�˜��\��W�\���XΈ�[�˝�X��[��XY�N��[�˛[��XY�K��Y�[ێ��[�˜�]K��\�Y�YY��[�˝�\�Y�YY���\��W�\N��[�˜��\��W�\K�^��[�˝^�B�JNB�B�B�B��Y�
-]Y\�[۝�Y[�	��Y�[��[�˛[���
-H�H�ۜ���X�[ۜ�H]�Z]Y�[��Y[���]��X�[ۜ�
-N�ۜ�^\��H��X�[ۜ˘��X�[ۜ˜��YJ�O�˛�[YHOOH��P�SӗӐSQJNY�
-^\��H]�Z]]Y\�[ې�Y[��[]P��X�[ۊ��P�SӗӐSQJN�ۜ��K����XܙX]YY�[���X�[ۈ	����P�SӗӐSQ_I�
-NB�]�Z]Y�[��Y[��ܙX]P��X�[ۊ��P�SӗӐSQK�X�ܜΈ��^�N��\���X�ܑ[K\�[��N�	����[�I�B�JN]�Z]]Y\�[ې�Y[��\�\�
-��P�SӗӐSQK��[�ΈY�[��[��JN�[��\�\�YHY�[��[�˛[���ۜ��K���\�\�Y	��[��\�\�YH�[��[��Y�[���X�[ۈ	����P�SӗӐSQ_I�
-[OIٚ\���X�ܑ[_JK�
-NH�]�
-\��H�ۜ��K��\����[��\�[ۗHY�[�\�\���\Y��
-�\���Y\��Y�JNB�B���ۜ��K���	��KKHS��T�Sӈ�SSPT�HKKI�N�ۜ��K���ۛ��Y�H��\��\����\��Y�	��[��\��\�X
-N�ۜ��K���ۛ��Y�H�[����Z[�	��[�[���X
-N�ۜ��K���Y�[��[��\�\�Y�	��[��\�\�YX
-NB��Y�
-���\�˘\�݈�WH	�����\�˘\�ݖ�WK�[���]
-	�[��\�ۛ��Y�K����JH�[�[��\�[ۊ
-K��]�
-�ۜ��K�\��܊NB
+  // 4. Embed all chunks (batched)
+  const aiClient = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  const vectors = [];
+
+  for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
+    const batch = allChunks.slice(i, i + BATCH_SIZE);
+    const texts = batch.map((c) => c.text);
+    process.stdout.write(
+      `  Embedding chunks ${i + 1}–${Math.min(i + BATCH_SIZE, allChunks.length)} / ${allChunks.length}…\r`
+    );
+
+    let batchVectors;
+    try {
+      batchVectors = await embedBatch(aiClient, texts);
+    } catch (err) {
+      console.error(`\n[Ingest] Embedding failed at chunk ${i}: ${err.message}`);
+      process.exit(1);
+    }
+
+    for (const v of batchVectors) {
+      if (!v || v.length === 0) {
+        console.error('\n[Ingest] ERROR: Received empty vector. Aborting.');
+        process.exit(1);
+      }
+      vectors.push(v);
+    }
+
+    if (i + BATCH_SIZE < allChunks.length) {
+      await sleep(BATCH_DELAY_MS);
+    }
+  }
+
+  console.log('\n');
+
+  // 5. Determine vector dimension from first embedding
+  const vectorDim = vectors[0].length;
+  console.log(`[Ingest] Vector dimension: ${vectorDim}`);
+  console.log(`[Ingest] Collection: ${COLLECTION_NAME}`);
+
+  // 6. Recreate collection (idempotent)
+  try {
+    await qdrantClient.deleteCollection(COLLECTION_NAME).catch(() => {});
+    await qdrantClient.createCollection(COLLECTION_NAME, {
+      vectors: {
+        size: vectorDim,
+        distance: 'Cosine'
+      }
+    });
+    console.log(`[Ingest] Collection "${COLLECTION_NAME}" recreated`);
+
+    // Create required payload indexes for filtering on hosted Qdrant
+    await qdrantClient.createPayloadIndex(COLLECTION_NAME, {
+      field_name: 'state',
+      field_schema: 'keyword'
+    });
+    await qdrantClient.createPayloadIndex(COLLECTION_NAME, {
+      field_name: 'service_id',
+      field_schema: 'keyword'
+    });
+    await qdrantClient.createPayloadIndex(COLLECTION_NAME, {
+      field_name: 'verified',
+      field_schema: 'bool'
+    });
+  } catch (err) {
+    console.error(`[Ingest] Failed to create collection: ${err.message}`);
+    process.exit(1);
+  }
+
+  // 7. Build Qdrant points
+  const points = allChunks.map((chunk, idx) => ({
+    id: stableId(chunk.source_ref),
+    vector: vectors[idx],
+    payload: {
+      service_id: chunk.service_id,
+      state: chunk.state,
+      verified: chunk.verified,
+      source_type: chunk.source_type,
+      language: chunk.language,
+      topic: chunk.topic,
+      text: chunk.text,
+      title: chunk.title || '',
+      department: chunk.department || null,
+      source_url: chunk.source_url || null,
+      source_ref: chunk.source_ref
+    }
+  }));
+
+  // 8. Upsert in batches of 100
+  const UPSERT_BATCH = 100;
+  let upserted = 0;
+
+  for (let i = 0; i < points.length; i += UPSERT_BATCH) {
+    const batch = points.slice(i, i + UPSERT_BATCH);
+    try {
+      await qdrantClient.upsert(COLLECTION_NAME, { wait: true, points: batch });
+      upserted += batch.length;
+    } catch (err) {
+      console.error(`[Ingest] Upsert failed at point ${i}: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // 9. Summary
+  console.log('\n=== INGESTION SUMMARY ===');
+  console.log(`  Files read      : ${files.length}`);
+  for (const { fileName, count } of fileSummary) {
+    console.log(`    ${fileName.padEnd(42)} ${count} chunks`);
+  }
+  console.log(`  Total chunks    : ${allChunks.length}`);
+  console.log(`  Points upserted : ${upserted}`);
+  console.log(`  Vector dim      : ${vectorDim}`);
+  console.log(`  Collection      : ${COLLECTION_NAME}`);
+  console.log('\n[Ingest] Done.\n');
+}
+
+runIngestion().catch((err) => {
+  console.error('[Ingest] Unexpected error:', err.message);
+  process.exit(1);
+});

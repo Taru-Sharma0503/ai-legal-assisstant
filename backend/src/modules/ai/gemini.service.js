@@ -10,6 +10,9 @@ You help people understand government services in Uttar Pradesh.
 STRICT RULES:
 
 1. Answer ONLY from the verified context passages provided below.
+   List ONLY documents explicitly mentioned in the context. Do NOT invent or add
+   common outside documents (such as Voter ID, Father's caste certificate, or
+   Income certificate for Non-Creamy Layer) unless they appear in the provided text.
 
 2. Do NOT invent, assume, or guess any fee amount, document name,
    timeline, eligibility criterion, processing step, or office location.
@@ -111,13 +114,20 @@ function processResponse(rawText) {
   };
 }
 
+let geminiClientInstance = null;
+// Pass client object to inject, `false` to disable, `null` to reset.
+export function _setGeminiClient(client) { geminiClientInstance = client; }
+
 export async function generateWithGemini(question, language, chunks) {
-  if (!aiConfig.gemini.apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured.");
+  if (geminiClientInstance === false) {
+    throw new Error('GEMINI disabled by test injection.');
+  }
+  if (!geminiClientInstance && !aiConfig.gemini.apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured.');
   }
 
-  const aiClient = new GoogleGenAI({ apiKey: aiConfig.gemini.apiKey });
-  const prompt = SYSTEM_PROMPT + "\n\n" + buildUserMessage(question, language, chunks);
+  const aiClient = geminiClientInstance || new GoogleGenAI({ apiKey: aiConfig.gemini.apiKey });
+  const prompt = SYSTEM_PROMPT + '\n\n' + buildUserMessage(question, language, chunks);
 
   const response = await aiClient.models.generateContent({
     model: aiConfig.gemini.model,

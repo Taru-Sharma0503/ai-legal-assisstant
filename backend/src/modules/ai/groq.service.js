@@ -20,12 +20,19 @@ function processResponse(rawText) {
   };
 }
 
+let groqClientInstance = null;
+// Pass client object to inject, `false` to disable, `null` to reset.
+export function _setGroqClient(client) { groqClientInstance = client; }
+
 export async function generateWithGroq(question, language, chunks) {
-  if (!aiConfig.groq.apiKey) {
-    throw new Error("GROQ_API_KEY is not configured.");
+  if (groqClientInstance === false) {
+    throw new Error('Groq disabled by test injection.');
+  }
+  if (!groqClientInstance && !aiConfig.groq.apiKey) {
+    throw new Error('GROQ_API_KEY is not configured.');
   }
 
-  const groq = new Groq({ apiKey: aiConfig.groq.apiKey });
+  const groq = groqClientInstance || new Groq({ apiKey: aiConfig.groq.apiKey });
   const userMessage = buildUserMessage(question, language, chunks);
 
   const response = await groq.chat.completions.create({
