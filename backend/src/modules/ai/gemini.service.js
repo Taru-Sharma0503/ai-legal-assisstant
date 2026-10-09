@@ -126,7 +126,14 @@ export async function generateWithGemini(question, language, chunks) {
     throw new Error('GEMINI_API_KEY is not configured.');
   }
 
-  const aiClient = geminiClientInstance || new GoogleGenAI({ apiKey: aiConfig.gemini.apiKey });
+  const aiClient = geminiClientInstance || new GoogleGenAI({
+    apiKey: aiConfig.gemini.apiKey,
+    httpOptions: {
+      timeout: aiConfig.timeoutMs,
+      // One attempt avoids long SDK backoff for quota exhaustion; app-level fallback handles failures.
+      retryOptions: { attempts: 1 }
+    }
+  });
   const prompt = SYSTEM_PROMPT + '\n\n' + buildUserMessage(question, language, chunks);
 
   const response = await aiClient.models.generateContent({
@@ -144,4 +151,3 @@ export async function generateWithGemini(question, language, chunks) {
 
   return processResponse(rawText);
 }
-

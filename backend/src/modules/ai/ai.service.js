@@ -36,6 +36,21 @@ function fallbackFromChunks(chunks, language) {
   return { answer, needs_human: false, generation_status: 'fallback' };
 }
 
+const GEMINI_QUOTA_COOLDOWN_MS = 60_000;
+let geminiQuotaCooldownUntil = 0;
+
+function isQuotaError(error) {
+  return Number(error?.status ?? error?.statusCode) === 429 ||
+    /quota|resource_exhausted/i.test(String(error?.code || error?.message || ''));
+}
+
+function safeProviderError(error) {
+  const status = Number(error?.status ?? error?.statusCode);
+  return Number.isFinite(status) && status > 0
+    ? `HTTP ${status}`
+    : String(error?.name || 'ProviderError').slice(0, 60);
+}
+
 export async function askService({ question, language, state = 'Uttar Pradesh', skipLlm = false }) {
   // Task C-1: treat 'auto', undefined, empty string as 'detect'; call detectLanguage
   const lang =
@@ -126,15 +141,29 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   }
 
   let genResult = null;
-  try {
-    genResult = await generateWithGemini(question, lang, filteredChunks);
-  } catch (geminiErr) {
-    console.warn('Gemini unavailable, attempting Groq fallback:', geminiErr.message);
+  const provider = aiConfig.generationProvider;
+  const useGemini = provider !== 'groq' && Date.now() >= geminiQuotaCooldownUntil;
+
+  if (!useGemini) {
     try {
       genResult = await generateWithGroq(question, lang, filteredChunks);
     } catch (groqErr) {
-      console.error('Both Gemini and Groq failed, using grounded chunk fallback:', groqErr.message);
+      console.error('[AI] Groq generation failed; using grounded chunk fallback:', safeProviderError(groqErr));
       genResult = fallbackFromChunks(filteredChunks, lang);
+    }
+  } else {
+    try {
+      genResult = await generateWithGemini(question, lang, filteredChunks);
+      geminiQuotaCooldownUntil = 0;
+    } catch (geminiErr) {
+      if (isQuotaError(geminiErr)) geminiQuotaCooldownUntil = Date.now() + GEMINI_QUOTA_COOLDOWN_MS;
+      console.warn('[AI] Gemini unavailable, attempting Groq fallback:', safeProviderError(geminiErr));
+      try {
+        genResult = await generateWithGroq(question, lang, filteredChunks);
+      } catch (groqErr) {
+        console.error('[AI] Both generation providers failed; using grounded chunk fallback:', safeProviderError(groqErr));
+        genResult = fallbackFromChunks(filteredChunks, lang);
+      }
     }
   }
 
@@ -428,9 +457,9 @@ export async function postMessageService(userId, conversationId, { question, lan
   const suggestedService = await resolveSuggestedService(result.suggested_service_id);
 
   const formattedSources = (result.sources || []).map((s) => ({
-    id: s.source_ref || s.id || s.chunk_id || '',
+    id: s.id || s.source_id || s.source_ref || s.chunk_id || '',
     title: s.title || s.topic || '',
-    sourceUrl: s.url || s.sourceUrl || '',
+    sourceUrl: s.source_url || s.url || s.sourceUrl || '',
     department: s.department || ''
   }));
 
@@ -512,4 +541,3 @@ export async function postMessageService(userId, conversationId, { question, lan
     suggestedService
   };
 }
-

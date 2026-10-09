@@ -32,7 +32,11 @@ export async function generateWithGroq(question, language, chunks) {
     throw new Error('GROQ_API_KEY is not configured.');
   }
 
-  const groq = groqClientInstance || new Groq({ apiKey: aiConfig.groq.apiKey });
+  const groq = groqClientInstance || new Groq({
+    apiKey: aiConfig.groq.apiKey,
+    timeout: aiConfig.timeoutMs,
+    maxRetries: 0
+  });
   const userMessage = buildUserMessage(question, language, chunks);
 
   const response = await groq.chat.completions.create({
