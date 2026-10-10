@@ -1,3 +1,4 @@
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -166,15 +167,26 @@ model OfficeService {
 }
 
 model Application {
-  id              String                @id @default(uuid())
-  referenceNumber String                @unique
+  id              String            @id @default(uuid())
+  referenceNumber String            @unique
   userId          String
-  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceId       String
-  service         Service               @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  status          ApplicationStatus     @default(DRAFT)
-  applicationDate DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  service         Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  status          ApplicationStatus @default(DRAFT)
+  applicationDate DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Applicant details
+  applicantName        String?
+  applicantDateOfBirth DateTime?
+  applicantGender      String?
+  applicantMobile      String?
+  applicantEmail       String?
+  applicantAddress     String? @db.Text
+  annualIncome         Float?
+  occupation           String?
+  incomeSource         String?
 
   documents       ApplicationDocument[]
 
@@ -195,16 +207,16 @@ model ApplicationDocument {
 }
 
 model Escalation {
-  id             String              @id @default(uuid())
+  id             String           @id @default(uuid())
   userId         String
-  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversationId String?
-  conversation   AiConversation?     @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  conversation   AiConversation?  @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   subject        String
-  description    String              @db.Text
-  status         EscalationStatus    @default(PENDING)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  description    String           @db.Text
+  status         EscalationStatus @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   messages       EscalationMessage[]
 

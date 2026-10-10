@@ -1,3 +1,4 @@
+
 import { Router } from 'express';
 import * as applicationController from './application.controller.js';
 import { authenticate } from '../../middleware/auth.middleware.js';
@@ -24,6 +25,13 @@ router.get(
   '/',
   validate({ query: applicationQuerySchema }),
   applicationController.getMyApplications
+);
+
+// NEW: Submit a draft application
+router.post(
+  '/:applicationId/submit',
+  validate({ params: applicationIdParamSchema }),
+  applicationController.submitApplication
 );
 
 router.get(
