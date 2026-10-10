@@ -1,0 +1,11 @@
+
+ALTER TABLE "applications"
+  ADD COLUMN IF NOT EXISTS "applicantName" TEXT,
+  ADD COLUMN IF NOT EXISTS "applicantDateOfBirth" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "applicantGender" TEXT,
+  ADD COLUMN IF NOT EXISTS "applicantMobile" TEXT,
+  ADD COLUMN IF NOT EXISTS "applicantEmail" TEXT,
+  ADD COLUMN IF NOT EXISTS "applicantAddress" TEXT,
+  ADD COLUMN IF NOT EXISTS "annualIncome" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "occupation" TEXT,
+  ADD COLUMN IF NOT EXISTS "incomeSource" TEXT;
