@@ -474,6 +474,219 @@ describe('legal knowledge routing', () => {
     }
   });
 
+  it('answers only character-certificate questions covered by the retrieved fields', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const cases = [
+      {
+        question: 'What details does the character certificate form record?',
+        id: 'character-overview', section: 'Certificate Overview',
+        text: 'The Character Certificate form records applicant identity, age, education, occupation, address, criminal case details if any, general reputation, conduct and character remarks, and police record remarks.',
+        shouldAnswer: true
+      },
+      {
+        question: 'Character certificate form me police record ke baare me kya details hongi?',
+        id: 'character-police', section: 'Police & Character Verification',
+        text: 'The Character Certificate form records details of criminal cases at the police station, if any, and whether an adverse entry exists in the relevant police station record.',
+        shouldAnswer: true
+      },
+      {
+        question: 'What documents are needed for a character certificate?',
+        id: 'character-overview', section: 'Certificate Overview',
+        text: 'The Character Certificate form records applicant identity and police record remarks.',
+        shouldAnswer: false
+      },
+      {
+        question: 'UP me character certificate ke liye police verification kaise hoga?',
+        id: 'character-police', section: 'Police & Character Verification',
+        text: 'The form asks about criminal cases, general reputation, conduct and character remarks, and adverse police-record entries.',
+        shouldAnswer: false
+      }
+    ];
+    let index = 0;
+    rag._setQdrantClient({ query: async (_collection, options) => {
+      const current = cases[index++];
+      assert.ok(options.filter.must.some((condition) => condition.key === 'service_id' && condition.match.value === 'up_character_certificate'));
+      return [{ score: 0.91, payload: { chunk_id: current.id, source_id: 'character-source', service_id: 'up_character_certificate' } }];
+    } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => {
+      const current = cases[index - 1];
+      return where.id.in.includes(current.id) ? [{
+        id: current.id, sourceId: 'character-source', text: current.text, section: current.section,
+        language: 'en', region: 'Uttar Pradesh', verified: true,
+        source: { id: 'character-source', title: 'Character Certificate Form', sourceUrl: 'https://example.gov/character', verified: true }
+      }] : [];
+    } } });
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    const oldThreshold = process.env.SIMILARITY_THRESHOLD;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    process.env.SIMILARITY_THRESHOLD = '0.30';
+    try {
+      const { askService } = await import('../../src/modules/ai/ai.service.js');
+      for (const current of cases) {
+        const result = await askService({ question: current.question, language: 'en', skipLlm: true });
+        assert.equal(result.suggested_service_id, 'up_character_certificate');
+        assert.equal(result.needs_human, !current.shouldAnswer, current.question);
+        if (current.shouldAnswer) {
+          assert.equal(result.guard_reason, 'in_scope');
+          assert.equal(result.sources[0].source_url, 'https://example.gov/character');
+        } else {
+          assert.equal(result.guard_reason, 'no_chunks');
+          assert.deepEqual(result.sources, []);
+        }
+      }
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
+      if (oldThreshold === undefined) delete process.env.SIMILARITY_THRESHOLD; else process.env.SIMILARITY_THRESHOLD = oldThreshold;
+    }
+  });
+
+  it('keeps grounded in-scope fallback and escalates unsupported requests when providers fail', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const gemini = await import('../../src/modules/ai/gemini.service.js');
+    const groq = await import('../../src/modules/ai/groq.service.js');
+    const records = [
+      {
+        id: 'character-overview', sourceId: 'character-source',
+        text: 'The Character Certificate form records applicant identity, age, education, occupation, address, criminal case details if any, general reputation, conduct and character remarks, and police record remarks.',
+        section: 'Certificate Overview', language: 'en', region: 'Uttar Pradesh', verified: true,
+        source: { id: 'character-source', title: 'Character Certificate Form', sourceUrl: 'https://example.gov/character', verified: true }
+      },
+      {
+        id: 'legal-aid', sourceId: 'legal-aid-source',
+        text: 'Section 13 of the Legal Services Authorities Act concerns a prima facie case to prosecute or defend.',
+        section: 'section_13_entitlement_assessment', language: 'en', region: 'Uttar Pradesh', verified: true,
+        source: { id: 'legal-aid-source', title: 'Legal Services Authorities Act', sourceUrl: 'https://www.indiacode.nic.in/legal-aid', verified: true }
+      }
+    ];
+    let retrievalIndex = 0;
+    let geminiCalls = 0;
+    let groqCalls = 0;
+    rag._setQdrantClient({ query: async (_collection, options) => {
+      const record = records[retrievalIndex++];
+      if (record.id === 'character-overview') {
+        assert.ok(options.filter.must.some((condition) => condition.key === 'service_id' && condition.match.value === 'up_character_certificate'));
+      }
+      return [{ score: 0.99, payload: {
+        chunk_id: record.id, source_id: record.sourceId,
+        ...(record.id === 'character-overview' ? { service_id: 'up_character_certificate' } : {})
+      } }];
+    } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => records.filter((record) => where.id.in.includes(record.id)) } });
+    gemini._setGeminiClient({ models: { generateContent: async () => {
+      geminiCalls += 1;
+      const error = new Error('provider unavailable'); error.status = 503; throw error;
+    } } });
+    groq._setGroqClient({ chat: { completions: { create: async () => {
+      groqCalls += 1;
+      const error = new Error('rate limited'); error.status = 429; throw error;
+    } } } });
+    const oldProvider = process.env.LLM_PROVIDER;
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    const oldThreshold = process.env.SIMILARITY_THRESHOLD;
+    process.env.LLM_PROVIDER = 'gemini';
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    process.env.SIMILARITY_THRESHOLD = '0.30';
+    try {
+      const { askService } = await import('../../src/modules/ai/ai.service.js');
+      const supported = await askService({
+        question: 'What details does the character certificate form record?', language: 'en'
+      });
+      assert.equal(supported.generation_status, 'fallback');
+      assert.equal(supported.needs_human, false);
+      assert.match(supported.answer, /criminal case details/);
+      assert.equal(supported.sources[0].source_url, 'https://example.gov/character');
+      assert.equal(geminiCalls, 1);
+      assert.equal(groqCalls, 1);
+
+      const unsupported = await askService({ question: 'How to file an online FIR with Uttar Pradesh Police?', language: 'en' });
+      assert.equal(unsupported.needs_human, true);
+      assert.equal(unsupported.guard_reason, 'no_chunks');
+      assert.equal(unsupported.suggested_service_id, null);
+      assert.deepEqual(unsupported.sources, []);
+      assert.equal(geminiCalls, 1, 'unsupported questions should be guarded before Gemini');
+      assert.equal(groqCalls, 1, 'unsupported questions should be guarded before Groq');
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      gemini._setGeminiClient(null); groq._setGroqClient(null);
+      if (oldProvider === undefined) delete process.env.LLM_PROVIDER; else process.env.LLM_PROVIDER = oldProvider;
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
+      if (oldThreshold === undefined) delete process.env.SIMILARITY_THRESHOLD; else process.env.SIMILARITY_THRESHOLD = oldThreshold;
+    }
+  });
+
+  it('escalates unsupported domicile eligibility without elevating unsourced structured fields', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const document = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'data/services/domicile_certificate_up.json'), 'utf8'));
+    const chunks = buildChunks(document, 'domicile_certificate_up.json');
+    assert.ok(document.eligibility_criteria?.length, 'the JSON has structured criteria');
+    assert.ok(chunks.every((chunk) => !/eligibility/i.test(`${chunk.topic} ${chunk.text}`)), 'authored chunks omit eligibility');
+
+    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'domicile-overview', source_id: 'domicile-source', service_id: 'up_domicile_certificate' } }] });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async () => [{
+      id: 'domicile-overview', sourceId: 'domicile-source', text: chunks[0].text, section: 'Overview & Fee',
+      language: 'en', region: 'Uttar Pradesh', verified: true,
+      source: { id: 'domicile-source', title: 'Domicile Certificate', sourceUrl: 'https://edistrict.up.gov.in', verified: true }
+    }] } });
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    try {
+      const { askService } = await import('../../src/modules/ai/ai.service.js');
+      const result = await askService({ question: 'निवास प्रमाण पत्र के लिए कौन आवेदन कर सकता है?', language: 'hi', skipLlm: true });
+      assert.equal(result.suggested_service_id, 'up_domicile_certificate');
+      assert.equal(result.needs_human, true);
+      assert.equal(result.guard_reason, 'no_chunks');
+      assert.deepEqual(result.sources, []);
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
+    }
+  });
+
+  it('rejects high-similarity consumer-builder and online-FIR hits that do not answer those intents', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const rows = [
+      { id: 'consumer-act', sourceId: 'consumer-source', text: 'Section 2(6) of the Consumer Protection Act defines consumer complaints and lists statutory grounds.', section: 'consumer_act_complaint_scope', title: 'Consumer Protection Act', sourceUrl: 'https://www.indiacode.nic.in/consumer', service_id: '' },
+      { id: 'nch', sourceId: 'nch-source', text: 'NCH is a pre-litigation consumer grievance channel; consumers may call 1915.', section: 'national_consumer_helpline_grievance', title: 'National Consumer Helpline', sourceUrl: 'https://consumerhelpline.gov.in/public/about', service_id: '' },
+      { id: 'legal-aid', sourceId: 'aid-source', text: 'Section 13 of the Legal Services Authorities Act concerns a prima facie case to prosecute or defend.', section: 'section_13_entitlement_assessment', title: 'Legal Services Authorities Act', sourceUrl: 'https://www.indiacode.nic.in/legal-aid', service_id: '' },
+      { id: 'bnss', sourceId: 'bnss-source', text: 'Under BNSS section 173, information about a cognizable offence may be given to a police station; electronic communication must be signed within three days.', section: 'bnss_cognizable_information', title: 'Bharatiya Nagarik Suraksha Sanhita', sourceUrl: 'https://www.indiacode.nic.in/bnss', service_id: '' }
+    ].map((row) => ({ ...row, language: 'en', region: 'Uttar Pradesh', verified: true, source: { id: row.sourceId, title: row.title, sourceUrl: row.sourceUrl, verified: true } }));
+    const calls = [];
+    rag._setQdrantClient({ query: async (collection, options) => {
+      calls.push({ collection, options });
+      return (calls.length === 1 ? [rows[0], rows[1]] : [rows[2], rows[3]]).map((row) => ({
+        score: 0.99, payload: { chunk_id: row.id, source_id: row.sourceId }
+      }));
+    } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => rows.filter((row) => where.id.in.includes(row.id)) } });
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    try {
+      const { askService, filterLegalChunksForQuestion } = await import('../../src/modules/ai/ai.service.js');
+      const consumerQuestion = 'Where can I file a consumer complaint against a private builder?';
+      const firQuestion = 'How to file an online FIR with Uttar Pradesh Police?';
+      assert.deepEqual(filterLegalChunksForQuestion(consumerQuestion, rows).map((row) => row.id), []);
+      assert.deepEqual(filterLegalChunksForQuestion(firQuestion, rows).map((row) => row.id), []);
+      for (const question of [consumerQuestion, firQuestion]) {
+        const result = await askService({ question, language: 'en', skipLlm: true });
+        assert.equal(result.needs_human, true, question);
+        assert.equal(result.guard_reason, 'no_chunks', question);
+        assert.equal(result.suggested_service_id, null, question);
+        assert.deepEqual(result.sources, []);
+      }
+      assert.deepEqual(calls.map((call) => call.collection), ['legal_rights_chunks', 'legal_rights_chunks']);
+      assert.deepEqual(filterLegalChunksForQuestion('What does section 2(6) of the Consumer Protection Act define?', rows).map((row) => row.id), ['consumer-act']);
+      assert.deepEqual(filterLegalChunksForQuestion('Who may qualify for free legal aid?', rows).map((row) => row.id), ['legal-aid']);
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
+    }
+  });
+
   it('does not suggest a certificate service for verified legal results', async () => {
     const rag = await import('../../src/modules/ai/rag.service.js');
     rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'verified-legal', source_id: 'legal-source', source_ref: 'rights-article-14' } }] });
@@ -671,6 +884,175 @@ describe('legal knowledge routing', () => {
       rag._setEmbedClient(null);
       if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
       else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
+    }
+  });
+});
+
+describe('RAG evaluation quality audit', () => {
+  it('requires evidence relevance for answerable and partial-evidence outcomes', async () => {
+    const { evaluateCaseOutcome } = await import('../../scripts/evaluateRag.js');
+    const answerableCase = {
+      expectedService: 'up_income_certificate', expectNeedsHuman: false,
+      expectedTopic: 'Required Documents', lang: 'en'
+    };
+    const relevantCertificateSource = { topic: 'Required Documents', title: 'Income Certificate', source_url: 'https://edistrict.up.gov.in' };
+    assert.equal(evaluateCaseOutcome(answerableCase, {
+      suggested_service_id: 'up_income_certificate', needs_human: false,
+      sources: [relevantCertificateSource], answer: 'A photo is required.'
+    }).pass, true, 'answerable case with a relevant source should pass');
+    assert.equal(evaluateCaseOutcome(answerableCase, {
+      suggested_service_id: 'up_income_certificate', needs_human: false,
+      sources: [{ topic: 'POCSO reporting', title: 'POCSO Act' }], answer: 'A photo is required.'
+    }).pass, false, 'answerable case with a wrong-topic source should fail');
+
+    const unsupportedCase = { expectedService: null, expectNeedsHuman: true, answerability: 'unsupported_no_evidence', lang: 'en' };
+    const safeFallback = "I don't have enough verified information to answer this accurately. Please check with an official officer.";
+    assert.equal(evaluateCaseOutcome(unsupportedCase, {
+      suggested_service_id: null, needs_human: true, sources: [], answer: safeFallback
+    }).pass, true);
+    assert.equal(evaluateCaseOutcome(unsupportedCase, {
+      suggested_service_id: null, needs_human: true,
+      sources: [{ topic: 'POCSO reporting', source_url: 'https://example.gov/pocso' }], answer: safeFallback
+    }).pass, false, 'a wrong-topic source must fail even when human review is requested');
+
+    const partialCase = {
+      expectedService: null, expectNeedsHuman: true, answerability: 'partial_evidence_escalation', lang: 'en',
+      expectedEvidenceTopics: ['National Consumer Helpline'], expectedEvidenceUrls: ['consumerhelpline.gov.in'],
+      forbiddenAnswerPatterns: [/builder.{0,50}(?:must|should|has to).{0,30}(?:file|approach|sue)/i]
+    };
+    const source = { topic: 'National Consumer Helpline grievance', title: 'National Consumer Helpline', source_url: 'https://consumerhelpline.gov.in/public/about' };
+    const qualified = 'The National Consumer Helpline is a pre-litigation grievance channel. This general route does not determine the forum or outcome for a builder dispute.';
+    assert.equal(evaluateCaseOutcome(partialCase, {
+      suggested_service_id: null, needs_human: true, sources: [source], answer: qualified
+    }).pass, true);
+    assert.equal(evaluateCaseOutcome(partialCase, {
+      suggested_service_id: null, needs_human: true, sources: [], answer: safeFallback
+    }).pass, false, 'partial evidence must not be silently treated as no evidence');
+    assert.equal(evaluateCaseOutcome(partialCase, {
+      suggested_service_id: null, needs_human: true, sources: [source, { topic: 'POCSO reporting' }], answer: qualified
+    }).pass, false, 'irrelevant citations must fail a partial-evidence case');
+    assert.equal(evaluateCaseOutcome(partialCase, {
+      suggested_service_id: null, needs_human: true, sources: [source],
+      answer: 'A builder must sue in the Consumer Commission to obtain a remedy.'
+    }).pass, false, 'unsupported builder-specific claims must fail a partial-evidence case');
+  });
+
+  it('distinguishes portal-specific FIR instructions from supported BNSS section 173 guidance', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const document = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'data/legal/bnss_2023_police_procedure.json'), 'utf8'));
+    const chunk = buildChunks(document, 'bnss_2023_police_procedure.json').find((item) => /173\(3\)/.test(item.text));
+    assert.ok(chunk, 'the verified BNSS source contains section 173(3) guidance');
+    assert.doesNotMatch(chunk.text, /Uttar Pradesh Police online portal|online FIR portal/i);
+    const sourceId = 'bnss-source-test';
+    const record = {
+      id: chunk.id, sourceId, text: chunk.text, section: chunk.topic, language: chunk.language,
+      region: chunk.state, verified: true,
+      source: { id: sourceId, title: chunk.title, sourceUrl: chunk.source_url, department: chunk.department, sourceType: chunk.source_type, verified: true }
+    };
+    const calls = [];
+    rag._setQdrantClient({ query: async (collection, options) => {
+      calls.push({ collection, options });
+      return [{ score: 0.66, payload: { chunk_id: chunk.id, source_id: sourceId, source_ref: chunk.source_ref } }];
+    } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => where.id.in.includes(record.id) ? [record] : [] } });
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    const oldThreshold = process.env.SIMILARITY_THRESHOLD;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    process.env.SIMILARITY_THRESHOLD = '0.30';
+    try {
+      const { askService } = await import('../../src/modules/ai/ai.service.js');
+      const portal = await askService({ question: 'How do I submit an online FIR through the Uttar Pradesh Police portal?', language: 'en', skipLlm: true });
+      assert.equal(portal.needs_human, true);
+      assert.equal(portal.guard_reason, 'no_chunks');
+      assert.deepEqual(portal.sources, []);
+      assert.match(portal.answer, /don't have enough verified information/i);
+
+      const general = await askService({ question: 'What does BNSS section 173(3) require for information about a cognizable offence?', language: 'en', skipLlm: true });
+      assert.equal(general.needs_human, false);
+      assert.equal(general.guard_reason, 'in_scope');
+      assert.equal(general.sources[0].source_url, chunk.source_url);
+      assert.deepEqual(calls.map((call) => call.collection), ['legal_rights_chunks', 'legal_rights_chunks']);
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
+      if (oldThreshold === undefined) delete process.env.SIMILARITY_THRESHOLD; else process.env.SIMILARITY_THRESHOLD = oldThreshold;
+    }
+  });
+
+  it('records that the builder gate drops verified general NCH evidence', async () => {
+    const { filterLegalChunksForQuestion } = await import('../../src/modules/ai/ai.service.js');
+    const document = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'data/legal/national_consumer_helpline.json'), 'utf8'));
+    const [nch] = buildChunks(document, 'national_consumer_helpline.json');
+    assert.equal(nch.verified, true);
+    assert.match(nch.source_url, /consumerhelpline\.gov\.in/);
+    assert.match(nch.text, /pre-litigation grievance channel/i);
+    const selected = filterLegalChunksForQuestion('Where can I file a consumer complaint against a private builder?', [nch]);
+    assert.deepEqual(selected, [], 'current rule requires builder-specific wording in the candidate');
+  });
+
+  it('shows Qdrant topK can cut off a relevant chunk before legal topic filtering', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const legalRows = Array.from({ length: 5 }, (_, index) => ({
+      id: `aid-${index}`, sourceId: 'aid-source', text: 'Legal aid services may be available under the Legal Services Authorities Act.',
+      section: 'Legal aid', language: 'en', region: 'Uttar Pradesh', verified: true,
+      source: { id: 'aid-source', title: 'Legal Services Authorities Act', sourceUrl: 'https://example.gov/legal-aid', verified: true }
+    }));
+    const relevant = {
+      id: 'bnss-173', sourceId: 'bnss-source', text: 'BNSS section 173(3) permits a limited preliminary inquiry for specified cognizable offences.',
+      section: 'bnss_cognizable_information', language: 'en', region: 'Uttar Pradesh', verified: true,
+      source: { id: 'bnss-source', title: 'BNSS', sourceUrl: 'https://example.gov/bnss', verified: true }
+    };
+    const ranked = [...legalRows, relevant];
+    let requestedLimit;
+    rag._setQdrantClient({ query: async (_collection, options) => {
+      requestedLimit = options.limit;
+      return ranked.slice(0, options.limit).map((row, index) => ({
+        score: 0.99 - index * 0.01,
+        payload: { chunk_id: row.id, source_id: row.sourceId }
+      }));
+    } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => ranked.filter((row) => where.id.in.includes(row.id)) } });
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    try {
+      const { filterLegalChunksForQuestion } = await import('../../src/modules/ai/ai.service.js');
+      const question = 'What does BNSS section 173(3) provide for a cognizable offence?';
+      const result = await rag.retrieve(question);
+      assert.equal(requestedLimit, 5);
+      assert.equal(ranked.length, 6, 'the relevant fixture is ranked sixth');
+      assert.ok(!result.chunks.some((row) => row.id === relevant.id));
+      assert.deepEqual(filterLegalChunksForQuestion(question, result.chunks), []);
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
+    }
+  });
+
+  it('characterizes bare-section and constitutional-comparison relevance behavior', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const { filterLegalChunksForQuestion } = await import('../../src/modules/ai/ai.service.js');
+    const calls = [];
+    rag._setQdrantClient({ query: async (collection) => { calls.push(collection); return []; } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    const oldFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    try {
+      assert.equal(rag.isLegalQuestion('What does section 173(3) require?'), false);
+      await rag.retrieve('What does section 173(3) require?');
+      assert.deepEqual(calls, [aiConfig.qdrant.collection], 'current bare-section query routes to the certificate collection');
+
+      const candidates = [
+        { id: 'article-21', topic: 'Article 21', title: 'Fundamental Rights', text: 'Article 21 protects life and personal liberty.' },
+        { id: 'legal-aid', topic: 'Legal Aid', title: 'Legal Services Authorities Act', text: 'Legal services are available under the Act.' },
+        { id: 'pocso', topic: 'POCSO reporting', title: 'POCSO Act', text: 'Section 19 concerns reporting.' }
+      ];
+      const selected = filterLegalChunksForQuestion('Compare Article 21 and legal aid options.', candidates);
+      assert.deepEqual(selected.map((row) => row.id), ['article-21', 'legal-aid', 'pocso'], 'current comparison bypass retains unrelated legal topics');
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null);
+      if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;
     }
   });
 });
