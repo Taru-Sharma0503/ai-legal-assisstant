@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_consumer_protection_act_2019",
+    "service_name_en": "Consumer Protection Act, 2019",
+    "state": "Uttar Pradesh",
+    "department": "Department of Consumer Affairs, Ministry of Consumer Affairs, Food and Public Distribution, Government of India",
+    "portal_name": "India Code",
+    "portal_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/21423?view_type=browse",
+    "source_type": "official_legislation",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "consumer_protection_act_2019_complaints",
+      "text": "Section 2(6) of the Consumer Protection Act, 2019 defines a 'complaint' as an allegation made in writing by a complainant to obtain relief under the Act. Its listed grounds include an unfair contract or an unfair or restrictive trade practice; one or more defects in goods; deficiency in services; charging a price above a price fixed by law, displayed on the goods or package, shown in an exhibited price list, or agreed between the parties; offering hazardous goods or services in circumstances specified by the provision; and a claim for compensation under product-liability provisions. A grievance does not automatically meet this statutory definition or establish entitlement to a remedy; the applicable ground and relief depend on the facts and law.",
+      "metadata": {
+        "service_name": "Consumer Protection Act, 2019",
+        "state": "Uttar Pradesh",
+        "topic": "consumer_act_complaint_scope",
+        "section": "Consumer Protection Act section 2(6)",
+        "doc_id": "consumer_protection_act_2019",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/21423?view_type=browse",
+        "department": "Department of Consumer Affairs, Ministry of Consumer Affairs, Food and Public Distribution, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

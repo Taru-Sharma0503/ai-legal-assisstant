@@ -1,0 +1,87 @@
+{
+  "service_metadata": {
+    "service_id": "india_legal_services_authorities_act",
+    "service_name_en": "Legal Services Authorities Act, 1987",
+    "service_name_hi": "विधिक सेवा प्राधिकरण अधिनियम, 1987",
+    "state": "Uttar Pradesh",
+    "department": "Department of Justice, Ministry of Law and Justice, Government of India",
+    "portal_name": "India Code",
+    "portal_url": "https://www.indiacode.nic.in/handle/123456789/17040?locale=en",
+    "source_type": "official_legislation",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "The Act is national legislation; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, limitation periods, and facts with a qualified lawyer or the relevant legal services authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "legal_services_act_1987_overview",
+      "text": "The Legal Services Authorities Act, 1987 establishes legal services authorities to provide free and competent legal services to eligible people so that access to justice is not denied because of economic or other disabilities. The Act also provides for organising Lok Adalats. The official consolidated Act and applicable rules should be checked for the current wording and procedure.",
+      "metadata": {
+        "service_name": "Legal Services Authorities Act, 1987",
+        "state": "Uttar Pradesh",
+        "topic": "legal_services_act_overview",
+        "section": "Purpose of the Act",
+        "doc_id": "legal_services_authorities_act_1987",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/handle/123456789/17040?locale=en",
+        "department": "Department of Justice, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "legal_services_act_1987_section_12",
+      "text": "Section 12 of the Legal Services Authorities Act, 1987 identifies categories of people eligible to seek legal services, including: members of Scheduled Castes or Scheduled Tribes; victims of human trafficking or begar as referred to in Article 23 of the Constitution; women or children; persons covered by the disability provision in the Act; people affected by mass disaster, ethnic violence, caste atrocity, flood, drought, earthquake, industrial disaster or other circumstances of undeserved want; industrial workmen; people in custody in circumstances described by the Act; and people who meet the applicable income criterion. The exact statutory wording and referenced definitions should be checked in the current official Act.",
+      "metadata": {
+        "service_name": "Legal Services Authorities Act, 1987",
+        "state": "Uttar Pradesh",
+        "topic": "section_12_eligibility_categories",
+        "section": "Section 12 — Criteria for Giving Legal Services",
+        "doc_id": "legal_services_authorities_act_1987",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/handle/123456789/17040?locale=en",
+        "department": "Department of Justice, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "legal_services_act_1987_section_13",
+      "text": "Section 13 provides that a person who satisfies any criterion in Section 12 is entitled to legal services if the relevant Legal Services Authority is satisfied that the person has a prima facie case to prosecute or defend. Under Section 13(2), an income affidavit may be regarded as sufficient to establish income eligibility unless the authority has reason to disbelieve it. Meeting a listed category is therefore not a promise that an application will automatically be approved; the competent authority assesses the application under the Act and applicable rules.",
+      "metadata": {
+        "service_name": "Legal Services Authorities Act, 1987",
+        "state": "Uttar Pradesh",
+        "topic": "section_13_entitlement_assessment",
+        "section": "Section 13 — Entitlement to Legal Services",
+        "doc_id": "legal_services_authorities_act_1987",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/handle/123456789/17040?locale=en",
+        "department": "Department of Justice, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "legal_services_act_1987_income_criterion",
+      "text": "The Act's income-related criterion refers to the amount prescribed by the relevant government for the relevant forum. Do not rely on an old statutory figure without checking the current rules or official Legal Services Authority guidance. For Uttar Pradesh's published eligibility summary, see the separate UPSLSA legal-aid knowledge file and the official UPSLSA page.",
+      "metadata": {
+        "service_name": "Legal Services Authorities Act, 1987",
+        "state": "Uttar Pradesh",
+        "topic": "income_criterion_and_local_rules",
+        "section": "Income Criterion and Applicable Rules",
+        "doc_id": "legal_services_authorities_act_1987",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/handle/123456789/17040?locale=en",
+        "department": "Department of Justice, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

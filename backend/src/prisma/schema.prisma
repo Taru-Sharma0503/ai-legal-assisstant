@@ -104,22 +104,21 @@ model AiMessage {
 }
 
 model Service {
-  id                  String             @id @default(uuid())
+  id                  String            @id @default(uuid())
   name                String
   department          String
-  description         String             @db.Text
-  eligibility         String?            @db.Text
-  applicationMethod   ApplicationMethod  @default(BOTH)
+  description         String            @db.Text
+  eligibility         String?           @db.Text
+  applicationMethod   ApplicationMethod @default(BOTH)
   governmentPortalUrl String?
   region              String
-  isActive            Boolean            @default(true)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  isActive            Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   documents           ServiceDocument[]
   applications        Application[]
   offices             OfficeService[]
-  knowledgeSources    KnowledgeBase[]
 
   @@map("services")
 }
@@ -156,11 +155,11 @@ model Office {
 }
 
 model OfficeService {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   officeId  String
-  office    Office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  office    Office  @relation(fields: [officeId], references: [id], onDelete: Cascade)
   serviceId String
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@unique([officeId, serviceId])
   @@map("office_services")
@@ -176,17 +175,6 @@ model Application {
   status          ApplicationStatus @default(DRAFT)
   applicationDate DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-
-  // Applicant details
-  applicantName        String?
-  applicantDateOfBirth DateTime?
-  applicantGender      String?
-  applicantMobile      String?
-  applicantEmail       String?
-  applicantAddress     String? @db.Text
-  annualIncome         Float?
-  occupation           String?
-  incomeSource         String?
 
   documents       ApplicationDocument[]
 
@@ -236,17 +224,33 @@ model EscalationMessage {
   @@map("escalation_messages")
 }
 
-model KnowledgeBase {
-  id         String   @id @default(uuid())
+model KnowledgeSource {
+  id         String          @id @default(uuid())
   title      String
+  sourceUrl  String
   department String
-  sourceUrl  String?
-  serviceId  String?
-  service    Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  content    String   @db.Text
-  language   String   @default("hi")
-  verified   Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  sourceType String
+  verified   Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
-  @@map("knowledge_bases")
+  chunks     KnowledgeChunk[]
+}
+
+model KnowledgeChunk {
+  id          String          @id @default(uuid())
+  sourceId    String
+  text        String          @db.Text
+  pageNumber  Int?
+  section     String?
+  language    String
+  region      String?
+  verified    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  source      KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([verified])
 }

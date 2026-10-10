@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_pocso_2012",
+    "service_name_en": "Protection of Children from Sexual Offences Act, 2012",
+    "state": "Uttar Pradesh",
+    "department": "Ministry of Women and Child Development, Government of India",
+    "portal_name": "India Code",
+    "portal_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/2079?view_type=browse",
+    "source_type": "official_legislation",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "pocso_2012_reporting_duty",
+      "text": "Section 19 of the Protection of Children from Sexual Offences Act, 2012 requires any person, including a child, who has an apprehension that an offence under the Act is likely to be committed or knows that it has been committed to provide that information to the Special Juvenile Police Unit or local police. The person receiving the report must record it in writing, assign an entry number, read it over to the informant, and enter it in the prescribed book; if the report is made by a child, it must be recorded in simple language, and an interpreter or translator must be provided where needed. Under section 19(5), if the SJPU or local police is satisfied that the child against whom an offence has been committed needs care and protection, it must record reasons in writing and arrange that care immediately, including shelter-home or nearest-hospital admission where needed, within 24 hours of the report. Under section 19(6), the SJPU or local police must, without unnecessary delay and within 24 hours, report the matter to the Child Welfare Committee and Special Court, or the Court of Session where no Special Court has been designated, including the child's need for care and protection and steps taken. Section 21(3) provides that the punishment under section 21(1) for failure to report or record a case does not apply to a child under the Act. This child-specific exception concerns that punishment; it does not remove the section 19 reporting route or alter the duties applying to adults. Child Helpline 1098 is a support route, not a substitute for reporting to the SJPU or local police. Do not share identifying or intimate details publicly; the competent authorities determine appropriate steps under the law.",
+      "metadata": {
+        "service_name": "Protection of Children from Sexual Offences Act, 2012",
+        "state": "Uttar Pradesh",
+        "topic": "pocso_reporting_offence",
+        "section": "POCSO sections 19 and 21(3)",
+        "doc_id": "protection_of_children_from_sexual_offences_act_2012",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/2079?view_type=browse",
+        "department": "Ministry of Women and Child Development, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}
