@@ -1,0 +1,191 @@
+{
+    "service_metadata": {
+        "service_id": "up_marriage_certificate",
+        "service_name_en": "Marriage Certificate",
+        "service_name_hi": "विवाह प्रमाण पत्र",
+        "state": "Uttar Pradesh",
+        "department": "Stamp & Registration",
+        "source_type": "official_portal",
+        "portal_name": "eDistrict Uttar Pradesh",
+        "portal_url": "https://edistrict.up.gov.in/edistrictup/",
+        "fee_details": {
+            "user_charges_inr": 15,
+            "service_fee_inr_per_year": 50,
+            "service_fee_note": "Duration is calculated from the date of marriage until the date of applying for the marriage certificate."
+        },
+        "authentication_method": "eSathi Citizen Login",
+        "payment_mode": "Online",
+        "sla": "On appointment date"
+    },
+    "eligibility_criteria": [
+        "Applicant must be a resident of Uttar Pradesh.",
+        "Minimum age is 21 years for male and 18 years for female.",
+        "Marital status must be married.",
+        "आवेदक उत्तर प्रदेश का निवासी होना चाहिए।",
+        "पुरुष की न्यूनतम आयु 21 वर्ष और महिला की न्यूनतम आयु 18 वर्ष होनी चाहिए।",
+        "वैवाहिक स्थिति विवाहित होनी चाहिए।"
+    ],
+    "required_documents_checklist": [
+        {
+            "doc_id": "identity_proof",
+            "doc_name_en": "Identity Proof",
+            "doc_name_hi": "पहचान प्रमाण",
+            "mandatory": true,
+            "file_size_kb": 70
+        },
+        {
+            "doc_id": "address_proof",
+            "doc_name_en": "Address Proof",
+            "doc_name_hi": "पता प्रमाण",
+            "mandatory": true,
+            "file_size_kb": 70
+        },
+        {
+            "doc_id": "age_proof",
+            "doc_name_en": "Age Proof",
+            "doc_name_hi": "आयु प्रमाण",
+            "mandatory": true,
+            "file_size_kb": 70
+        },
+        {
+            "doc_id": "current_photo",
+            "doc_name_en": "Current Photograph",
+            "doc_name_hi": "वर्तमान फोटो",
+            "mandatory": true,
+            "file_size_kb": 40
+        },
+        {
+            "doc_id": "marriage_ceremony_proof",
+            "doc_name_en": "Marriage Ceremony Proof",
+            "doc_name_hi": "विवाह समारोह का प्रमाण",
+            "mandatory": true
+        }
+    ],
+    "application_process_steps": [
+        {
+            "step_number": 1,
+            "title_en": "Open and register on the eDistrict Portal",
+            "description_en": "Open the eDistrict Uttar Pradesh portal at https://edistrict.up.gov.in/edistrictup/, click Citizen Login (e-Sathi), register using personal and contact details, receive the generated password through SMS or email, and log in using the User ID and Password."
+        },
+        {
+            "step_number": 2,
+            "title_en": "Select eSathi Integrated Services",
+            "description_en": "After logging in, select the 'ESATHI INTEGRATED SERVICES' radio button."
+        },
+        {
+            "step_number": 3,
+            "title_en": "Select Marriage Certificate service",
+            "description_en": "Select the 'Marriage Certificate' service under the Stamp & Registration Department."
+        },
+        {
+            "step_number": 4,
+            "title_en": "Create applicant profile",
+            "description_en": "Create the profile by selecting the district and entering the date of birth and mobile number."
+        },
+        {
+            "step_number": 5,
+            "title_en": "Pay user charges",
+            "description_en": "Pay the user charges of Rs. 15 through the online payment gateway."
+        },
+        {
+            "step_number": 6,
+            "title_en": "Fill application and upload documents",
+            "description_en": "Fill in the details in the Marriage Certificate application form and attach the required documents."
+        },
+        {
+            "step_number": 7,
+            "title_en": "Select appointment date and pay service fee",
+            "description_en": "Select the desired appointment date and pay the applicable Marriage Certificate fee through the online portal."
+        },
+        {
+            "step_number": 8,
+            "title_en": "Preview and submit application",
+            "description_en": "Preview the application and submit it online."
+        },
+        {
+            "step_number": 9,
+            "title_en": "Appear at SRO office",
+            "description_en": "The applicant must appear physically with their spouse at the concerned Sub-Registrar Office (SRO) on the selected appointment date."
+        },
+        {
+            "step_number": 10,
+            "title_en": "Certificate uploaded by Registrar",
+            "description_en": "The final Marriage Certificate will be uploaded to the online portal by the Registrar officer."
+        },
+        {
+            "step_number": 11,
+            "title_en": "Download certificate",
+            "description_en": "The applicant can download the final certificate from the online portal or DigiLocker."
+        }
+    ],
+    "fees": [
+        {
+            "fee_type": "User Charges",
+            "amount_inr": 15,
+            "frequency": "Fixed"
+        },
+        {
+            "fee_type": "Service Fee",
+            "amount_inr": 50,
+            "frequency": "Per year",
+            "calculation": "Calculated from the date of marriage until the date of applying for the marriage certificate."
+        }
+    ],
+    "unknown_fields": [
+        "specific identity proof types",
+        "specific address proof types",
+        "specific age proof types",
+        "specific marriage ceremony proof types",
+        "processing time other than appointment date"
+    ],
+    "vector_db_chunks": [
+        {
+            "chunk_id": "up_marriage_cert_overview",
+            "text": "Service: Marriage Certificate (विवाह प्रमाण पत्र), Uttar Pradesh. Department: Stamp & Registration. Applicants must be residents of Uttar Pradesh. Minimum age is 21 years for male and 18 years for female. Marital status must be married. SLA is stated as on the appointment date.",
+            "metadata": {
+                "service_name": "Marriage Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Overview & Eligibility",
+                "doc_id": "marriage_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in/edistrictup/"
+            }
+        },
+        {
+            "chunk_id": "up_marriage_cert_documents",
+            "text": "Required Documents for Marriage Certificate (UP): Identity Proof (70 KB), Address Proof (70 KB), Age Proof (70 KB), Current Photo (40 KB), and Marriage Ceremony Proof.",
+            "metadata": {
+                "service_name": "Marriage Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Required Documents",
+                "doc_id": "marriage_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in/edistrictup/"
+            }
+        },
+        {
+            "chunk_id": "up_marriage_cert_process",
+            "text": "Marriage Certificate application process in Uttar Pradesh: 1. Open the eDistrict portal, select Citizen Login (e-Sathi), register and log in. 2. Select ESATHI INTEGRATED SERVICES. 3. Select Marriage Certificate under Stamp & Registration Department. 4. Create profile using district, date of birth and mobile number. 5. Pay Rs. 15 user charges online. 6. Fill application details and attach documents. 7. Select appointment date and pay the Marriage Certificate fee. 8. Preview and submit the application. 9. Applicant and spouse must appear physically at the concerned SRO office on the appointment date. 10. Registrar officer uploads the final certificate. 11. Applicant downloads the certificate from the online portal or DigiLocker.",
+            "metadata": {
+                "service_name": "Marriage Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Application Process",
+                "doc_id": "marriage_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in/edistrictup/"
+            }
+        },
+        {
+            "chunk_id": "up_marriage_cert_fees",
+            "text": "Marriage Certificate fees in Uttar Pradesh: User charges are Rs. 15 fixed. Service fee is Rs. 50 per year, with duration calculated from the date of marriage until the date of applying for the marriage certificate. Payment mode is online.",
+            "metadata": {
+                "service_name": "Marriage Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Fees & Payment",
+                "doc_id": "marriage_certificate_up",
+                "source_type": "official_portal",
+                "source_url": "https://edistrict.up.gov.in/edistrictup/"
+            }
+        }
+    ]
+}

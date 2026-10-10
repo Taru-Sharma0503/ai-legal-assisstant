@@ -1,0 +1,208 @@
+{
+    "service_metadata": {
+        "service_id": "up_disability_certificate",
+        "service_name_en": "Disability Certificate",
+        "service_name_hi": "दिव्यांगता प्रमाण पत्र",
+        "state": "Uttar Pradesh",
+        "source_type": "government_notification",
+        "portal_name": "Department of Empowerment of Persons with Disabilities",
+        "portal_url": null
+    },
+    "eligibility_criteria": [
+        "Disability assessment and certification are carried out according to the disability-specific assessment guidelines issued under the Rights of Persons with Disabilities Act, 2016.",
+        "The certifying authority is designated by the State Government or Union Territory Administration.",
+        "The disability certificate is issued by the designated certifying authority within its notified jurisdiction.",
+        "Different assessment and certification criteria apply to different categories of disabilities.",
+        "दिव्यांगता का आकलन और प्रमाणन दिव्यांग व्यक्तियों के अधिकार अधिनियम, 2016 के तहत जारी संबंधित दिव्यांगता-विशिष्ट दिशानिर्देशों के अनुसार किया जाता है।",
+        "प्रमाणित करने वाले अधिकारी को राज्य सरकार या केंद्र शासित प्रदेश प्रशासन द्वारा नामित किया जाता है।"
+    ],
+    "disability_categories": [
+        {
+            "category_id": "locomotor_disability",
+            "category_name_en": "Locomotor Disability",
+            "category_name_hi": "चलने-फिरने संबंधी दिव्यांगता"
+        },
+        {
+            "category_id": "visual_impairment",
+            "category_name_en": "Visual Impairment",
+            "category_name_hi": "दृष्टिबाधिता"
+        },
+        {
+            "category_id": "hearing_speech_language",
+            "category_name_en": "Hearing and Speech/Language Disability",
+            "category_name_hi": "श्रवण एवं वाक्/भाषा संबंधी दिव्यांगता"
+        },
+        {
+            "category_id": "specific_learning_disability",
+            "category_name_en": "Specific Learning Disability",
+            "category_name_hi": "विशिष्ट अधिगम अक्षमता"
+        },
+        {
+            "category_id": "intellectual_disability",
+            "category_name_en": "Intellectual Disability",
+            "category_name_hi": "बौद्धिक दिव्यांगता"
+        },
+        {
+            "category_id": "autism",
+            "category_name_en": "Autism Spectrum Disorder",
+            "category_name_hi": "ऑटिज्म स्पेक्ट्रम डिसऑर्डर"
+        },
+        {
+            "category_id": "mental_illness",
+            "category_name_en": "Mental Illness",
+            "category_name_hi": "मानसिक बीमारी"
+        },
+        {
+            "category_id": "blood_disorders",
+            "category_name_en": "Blood Disorders",
+            "category_name_hi": "रक्त संबंधी विकार"
+        },
+        {
+            "category_id": "multiple_disabilities",
+            "category_name_en": "Multiple Disabilities",
+            "category_name_hi": "बहु-दिव्यांगता"
+        },
+        {
+            "category_id": "chronic_neurological_conditions",
+            "category_name_en": "Chronic Neurological Conditions",
+            "category_name_hi": "दीर्घकालिक तंत्रिका संबंधी स्थितियां"
+        }
+    ],
+    "required_documents_checklist": [
+        {
+            "doc_id": "existing_disability_certificate",
+            "doc_name_en": "Existing Disability Certificate",
+            "doc_name_hi": "मौजूदा दिव्यांगता प्रमाण पत्र",
+            "mandatory": false
+        },
+        {
+            "doc_id": "medical_treatment_records",
+            "doc_name_en": "Relevant Medical Treatment Records",
+            "doc_name_hi": "संबंधित चिकित्सा उपचार अभिलेख",
+            "mandatory": false
+        },
+        {
+            "doc_id": "residence_change_proof",
+            "doc_name_en": "Proof of Change of Residence",
+            "doc_name_hi": "निवास परिवर्तन का प्रमाण",
+            "mandatory": false
+        },
+        {
+            "doc_id": "passport_size_photographs",
+            "doc_name_en": "Two Recent Passport Size Photographs",
+            "doc_name_hi": "दो हालिया पासपोर्ट आकार के फोटो",
+            "mandatory": false
+        }
+    ],
+    "assessment_information": [
+        "For multiple disabilities, each disability is assessed separately.",
+        "Only individual disabilities of 25% or more are included in the composite disability calculation.",
+        "The composite disability percentage cannot exceed 100%.",
+        "For visual impairment, assessment is performed after the best possible correction.",
+        "For autism spectrum disorder, disability assessment depends on age and severity.",
+        "For children below 6 years with autism spectrum disorder, the certificate is temporary and reassessment is required between 6 and 7 years.",
+        "For persons aged 18 years or above with autism spectrum disorder, the disability certificate issued after the age of 18 is permanent.",
+        "For intellectual disability, the minimum age for certification is one completed year.",
+        "For children below 5 years with Global Developmental Delay, a temporary certificate is issued until the age of 5 years.",
+        "For mental illness, permanent certification generally requires a minimum duration of at least two years, subject to the applicable guidelines."
+    ],
+    "application_process_steps": [],
+    "fees": {
+        "amount_inr": null,
+        "details": "The provided assessment guidelines do not specify the citizen application fee for a disability certificate."
+    },
+    "unknown_fields": [
+        "processing_time",
+        "application_fee",
+        "online_application_portal",
+        "online_application_steps",
+        "offline_application_steps",
+        "specific_up_certifying_authority_contact_details"
+    ],
+    "vector_db_chunks": [
+        {
+            "chunk_id": "up_disability_cert_overview",
+            "text": "Disability Certificate: Disability assessment and certification are carried out according to disability-specific guidelines issued under the Rights of Persons with Disabilities Act, 2016. The State Government or Union Territory Administration designates qualified certifying authorities, who issue disability certificates within their notified jurisdiction.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Overview & Certification Authority",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_disability_cert_categories",
+            "text": "The assessment guidelines cover locomotor disability, visual impairment, hearing and speech/language disability, specific learning disability, intellectual disability, autism spectrum disorder, mental illness, blood disorders, multiple disabilities and chronic neurological conditions.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Disability Categories",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_disability_cert_multiple",
+            "text": "For multiple disabilities, each disability is assessed separately. Only individual disabilities of 25 percent or more are included in the composite disability calculation. The composite disability percentage cannot exceed 100 percent.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Multiple Disability Assessment",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_disability_cert_autism",
+            "text": "For autism spectrum disorder, children below 6 years are given a temporary certificate and require reassessment between 6 and 7 years. For children aged 6 years and above but below 18 years, reassessment and re-certification are performed according to the applicable age and disability criteria. A certificate issued at 18 years of age is valid lifelong.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Autism Certification",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_disability_cert_intellectual",
+            "text": "For intellectual disability, the minimum age for certification is one completed year. Children above one year and up to 5 years may be diagnosed with Global Developmental Delay. Children below 5 years receive a temporary certificate valid until age 5. For children aged 5 years and above, validity and reassessment depend on the disability percentage and age.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Intellectual Disability Certification",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_disability_cert_mental_illness",
+            "text": "For mental illness, the assessment may include clinical assessment, the Indian Disability Evaluation and Assessment Scale (IDEAS), and/or IQ assessment where required. Permanent certification generally requires a minimum duration of at least two years of mental illness, subject to the applicable assessment guidelines.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Mental Illness Assessment",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        },
+        {
+            "chunk_id": "up_disability_cert_reassessment",
+            "text": "A reassessment application may contain the applicant's name, parents' names, date of birth, sex, permanent and current address, contact details, type and percentage of disability, existing certificate details and reason for reassessment. Listed supporting documents include the existing disability certificate, relevant medical records where applicable, proof of change of residence where applicable and two recent passport-size photographs.",
+            "metadata": {
+                "service_name": "Disability Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Reassessment",
+                "doc_id": "disability_certificate_up",
+                "source_type": "government_notification",
+                "source_url": null
+            }
+        }
+    ]
+}

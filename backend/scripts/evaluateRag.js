@@ -1,0 +1,306 @@
+/**
+ * scripts/evaluateRag.js
+ *
+ * End-to-end RAG evaluation script.
+ *
+ * Usage:
+ *   node scripts/evaluateRag.js          # full run (retrieval + LLM)
+ *   node scripts/evaluateRag.js --no-llm # retrieval + routing only, skips LLM
+ *
+ * Requirements:
+ *   - Shows regex_detected_service and suggested_service_id as separate columns.
+ *   - Out-of-scope PASS means needs_human is true AND suggested_service_id is null.
+ *   - In-scope checks optional expectedTopic (substring); topic mismatch fails unless knownGap.
+ *   - At least 20 out-of-scope questions (near-domain, RTI, consumer, FIR, unpaid wages, etc.)
+ *   - At least 10 additional in-scope paraphrases with misspelt Hinglish ("bnwane", "chahiy").
+ *   - Prints score distributions for each group and the best separating threshold.
+ */
+
+import { askService } from '../src/modules/ai/ai.service.js';
+import { detectService } from '../src/modules/ai/rag.service.js';
+
+const NO_LLM = process.argv.includes('--no-llm');
+
+// ── Evaluation Test Cases ──────────────────────────────────────────────────
+export const TEST_CASES = [
+  // ── IN-SCOPE: English (Core) ─────────────────────────────────────────────
+  { id: 'INC_EN_DOC',      question: 'What documents are required for an income certificate in UP?',         lang: 'en',       expectedService: 'up_income_certificate',     expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'CASTE_EN_DOC',    question: 'What documents are needed for a caste certificate?',                    lang: 'en',       expectedService: 'up_caste_certificate',      expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'DOM_EN_DOC',      question: 'What documents do I need for a domicile certificate?',                  lang: 'en',       expectedService: 'up_domicile_certificate',   expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'BIRTH_EN_DOC',    question: 'What documents are needed to apply for a birth certificate?',           lang: 'en',       expectedService: 'up_birth_certificate',      expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'DEATH_EN_DOC',    question: 'What documents are required for a death certificate in Uttar Pradesh?', lang: 'en',       expectedService: 'up_death_certificate',      expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'MARR_EN_DOC',     question: 'What documents are required for a marriage certificate in UP?',         lang: 'en',       expectedService: 'up_marriage_certificate',   expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'EWS_EN_DOC',      question: 'What documents are required for an EWS certificate?',                   lang: 'en',       expectedService: 'up_ews_certificate',        expectedTopic: 'Certificate Format', expectNeedsHuman: false },
+  { id: 'DIS_EN_DOC',      question: 'What documents are required for a disability certificate in UP?',        lang: 'en',       expectedService: 'up_disability_certificate', expectedTopic: ['Certification', 'Reassessment'], expectNeedsHuman: false },
+  { id: 'CHAR_EN_DOC',     question: 'What documents are needed for a character certificate?',                lang: 'en',       expectedService: 'up_character_certificate',  expectedTopic: ['Applicant Details', 'Police & Character Verification'], expectNeedsHuman: false },
+
+  // ── IN-SCOPE: Hindi (Core) ───────────────────────────────────────────────
+  { id: 'INC_HI_DOC',      question: 'उत्तर प्रदेश में आय प्रमाण पत्र के लिए कौन से दस्तावेज़ चाहिए?',    lang: 'hi',       expectedService: 'up_income_certificate',     expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'CASTE_HI_FEE',    question: 'जाति प्रमाण पत्र बनवाने की फीस कितनी है?',                            lang: 'hi',       expectedService: 'up_caste_certificate',      expectedTopic: 'Overview & Fee',     expectNeedsHuman: false },
+  { id: 'DOM_HI_ELIG',     question: 'निवास प्रमाण पत्र के लिए कौन आवेदन कर सकता है?',                      lang: 'hi',       expectedService: 'up_domicile_certificate',   expectedTopic: 'Eligibility',        expectNeedsHuman: false, knownGap: true, knownGapNote: 'domicile JSON has no eligibility chunk' },
+
+  // ── IN-SCOPE: Hinglish (Core) ────────────────────────────────────────────
+  { id: 'INC_HL_DOC',      question: 'income certificate ke liye kya documents chahiye bhai?',                lang: 'hinglish', expectedService: 'up_income_certificate',     expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'MARR_HL_FEE',     question: 'marriage certificate ki fees kitni hai',                                 lang: 'hinglish', expectedService: 'up_marriage_certificate',   expectedTopic: 'Fees & Payment',     expectNeedsHuman: false },
+  { id: 'CASTE_HL_DOC',    question: 'caste certificate bnwane ke liye photo chahiye kya',                     lang: 'hinglish', expectedService: 'up_caste_certificate',      expectedTopic: 'Required Documents', expectNeedsHuman: false },
+
+  // ── IN-SCOPE: Additional Paraphrases & Misspelt Hinglish (>= 10) ─────────
+  { id: 'INC_HL_MISSPELT', question: 'income certificate bnwane ke liye kya documents chahiy',                lang: 'hinglish', expectedService: 'up_income_certificate',     expectedTopic: 'Required Documents', expectNeedsHuman: false },
+  { id: 'CASTE_HL_MISSP',  question: 'caste certificate bnwane me kitna paisa lagta hai',                     lang: 'hinglish', expectedService: 'up_caste_certificate',      expectedTopic: 'Overview & Fee',     expectNeedsHuman: false },
+  { id: 'DOM_EN_FEE',      question: 'What is the fee for domicile certificate in UP?',                       lang: 'en',       expectedService: 'up_domicile_certificate',   expectedTopic: 'Overview & Fee',     expectNeedsHuman: false },
+  { id: 'MARR_EN_STEPS',   question: 'What is the application process for marriage certificate in UP?',        lang: 'en',       expectedService: 'up_marriage_certificate',   expectedTopic: 'Application Process',expectNeedsHuman: false },
+  { id: 'DEATH_EN_LATE',   question: 'What is the late fee for delayed death certificate registration?',      lang: 'en',       expectedService: 'up_death_certificate',      expectedTopic: 'Fees & Delayed',     expectNeedsHuman: false },
+  { id: 'BIRTH_HI_LATE',   question: 'जन्म प्रमाण पत्र 21 दिन के बाद बनवाने पर कितना शुल्क लगता है?',         lang: 'hi',       expectedService: 'up_birth_certificate',      expectedTopic: 'Fees & Delayed',     expectNeedsHuman: false },
+  { id: 'EWS_HI_ELIG',     question: 'उत्तर प्रदेश में ईडब्ल्यूएस प्रमाण पत्र के लिए पात्रता क्या है?',       lang: 'hi',       expectedService: 'up_ews_certificate',        expectedTopic: ['Eligibility', 'Certificate Format'], expectNeedsHuman: false },
+  { id: 'DIS_HI_AUTH',     question: 'दिव्यांग प्रमाण पत्र जारी करने का अधिकार किसके पास है?',                lang: 'hi',       expectedService: 'up_disability_certificate', expectedTopic: 'Certification',    expectNeedsHuman: false },
+  { id: 'CHAR_HL_POLICE',  question: 'UP me character certificate ke liye police verification kaise hoga',     lang: 'hinglish', expectedService: 'up_character_certificate',  expectedTopic: ['Police', 'Certificate Overview'], expectNeedsHuman: false },
+  { id: 'DOM_HL_APPLY',    question: 'UP me niwas praman patra online kaise banwaye',                          lang: 'hinglish', expectedService: 'up_domicile_certificate',   expectedTopic: 'Application Procedure', expectNeedsHuman: false },
+  { id: 'BIRTH_HL_OFFLINE',question: 'birth certificate offline kaise banega UP me',                          lang: 'hinglish', expectedService: 'up_birth_certificate',      expectedTopic: 'Offline Application',expectNeedsHuman: false },
+  { id: 'INC_HI_RULES',    question: 'उत्तर प्रदेश में आय प्रमाण पत्र के नियम क्या हैं?',                     lang: 'hi',       expectedService: 'up_income_certificate',     expectedTopic: ['Rules & Eligibility', 'Required Documents'], expectNeedsHuman: false },
+  { id: 'BIRTH_REGIST',    question: 'where birth is registered',                                              lang: 'en',       expectedService: 'up_birth_certificate',      expectedTopic: ['Overview & Registration', 'Offline Application'], expectNeedsHuman: false },
+
+  // ── IN-SCOPE: Unknown field guard (processing time) ──────────────────────
+  { id: 'UNK_PROC_TIME',   question: 'How long does the income certificate take?',                            lang: 'en',       expectedService: 'up_income_certificate',     expectedTopic: null,                 expectNeedsHuman: true },
+
+  // ── OUT-OF-SCOPE (>= 20 cases: near-domain, legal, civil, weather, gibberish) ─
+  { id: 'OOS_RATION',      question: 'How do I apply for a new ration card in UP?',                           lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_PENSION',     question: 'What is the procedure to apply for old age pension certificate in UP?', lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_OBC_NCL',     question: 'What documents are required for an OBC non-creamy layer certificate?',  lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_PAN',         question: 'How to apply for a new PAN card online?',                              lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_DL',          question: 'What documents are needed for a driving licence renewal in UP?',        lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_PASSPORT',    question: 'How do I get a passport?',                                              lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_LAND_RECORD', question: 'How do I check UP Bhulekh land record online?',                         lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_BIRTH_BIHAR', question: 'How to apply for a birth certificate in Bihar state?',                  lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_RTI',         question: 'How can I file an online RTI application in Uttar Pradesh?',            lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_CONSUMER',    question: 'Where can I file a consumer complaint against a private builder?',      lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_FIR',         question: 'How to file an online FIR with Uttar Pradesh Police?',                  lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_UNPAID_WAGES',question: 'My employer has not paid my salary for 3 months, how to recover wages?',lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_LANDLORD_DEP',question: 'What are my rights if my landlord keeps my security deposit?',          lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_TAXES',       question: 'How do I file an income tax return ITR-1?',                             lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_VOTER_ID',    question: 'How do I register for a new Voter ID card in UP?',                     lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_ELECTRICITY', question: 'How to apply for a new electricity connection in Lucknow?',             lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_WEATHER_EN',  question: 'What is the weather in Lucknow today?',                                 lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_WEATHER_HI',  question: 'आज लखनऊ में मौसम कैसा रहेगा?',                                         lang: 'hi',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_BIRYANI',     question: 'Where can I find the best biryani in Delhi?',                           lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_GIBBERISH_1', question: 'asdfghjkl qwerty uiop zxcvbnm',                                         lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_GIBBERISH_2', question: 'blorp zorp fizzt buzz bang 12345',                                      lang: 'en',       expectedService: null, expectNeedsHuman: true }
+];
+
+// ── Evaluate Single Case ───────────────────────────────────────────────────
+async function evalCase(tc) {
+  const start = Date.now();
+
+  const regexDetected = detectService(tc.question) ?? 'null';
+
+  // Call the REAL askService with skipLlm: NO_LLM
+  const result = await askService({
+    question: tc.question,
+    language: tc.lang,
+    state: 'Uttar Pradesh',
+    skipLlm: NO_LLM
+  });
+
+  const suggestedService = result.suggested_service_id ?? 'null';
+  const topScore = typeof result.confidence === 'number' ? result.confidence : 0;
+  const topTopic = result.sources?.[0]?.topic ?? '—';
+  const retrievalSource = result.retrieval_source ?? '—';
+  const guardReason = result.guard_reason ?? '—';
+  const needsHuman = result.needs_human;
+  const answer = result.answer ?? '';
+  const elapsedMs = Date.now() - start;
+
+  let pass = true;
+  const failures = [];
+
+  if (tc.expectedService !== null) {
+    // IN-SCOPE PASS criteria:
+    // 1. Service matches expected
+    if (suggestedService !== tc.expectedService) {
+      pass = false;
+      failures.push(`service: got ${suggestedService}, want ${tc.expectedService}`);
+    }
+
+    // 2. needs_human matches expected
+    if (needsHuman !== tc.expectNeedsHuman) {
+      pass = false;
+      failures.push(`needs_human: got ${needsHuman}, want ${tc.expectNeedsHuman}`);
+    }
+
+    // 3. Topic check (substring)
+    if (tc.expectedTopic && !tc.knownGap) {
+      const expectedList = Array.isArray(tc.expectedTopic) ? tc.expectedTopic : [tc.expectedTopic];
+      const matched = expectedList.some(exp => topTopic.toLowerCase().includes(exp.toLowerCase()));
+      if (!matched) {
+        pass = false;
+        failures.push(`topic: got "${topTopic}", want "${expectedList.join(' | ')}"`);
+      }
+    } else if (tc.knownGap) {
+      // Known gap: do not fail, log note
+      failures.push(`note: knownGap (${tc.knownGapNote || 'gap'})`);
+    }
+
+    // 4. Live LLM hallucination check for caste documents question
+    if (!NO_LLM && tc.id === 'CASTE_EN_DOC') {
+      const forbidden = ['Voter ID', 'Non-Creamy', 'Father / Family Member'];
+      const foundForbidden = forbidden.filter((f) => answer.toLowerCase().includes(f.toLowerCase()));
+      if (foundForbidden.length > 0) {
+        pass = false;
+        failures.push(`hallucination: [${foundForbidden.join(', ')}] found in answer`);
+      }
+    }
+  } else {
+    // OUT-OF-SCOPE PASS criteria:
+    // PASS means needs_human is true AND suggested_service_id is null; do not compare against regex service.
+    if (!needsHuman) {
+      pass = false;
+      failures.push(`needs_human: got ${needsHuman}, want true`);
+    }
+    if (result.suggested_service_id !== null) {
+      pass = false;
+      failures.push(`suggested_service_id: got ${result.suggested_service_id}, want null`);
+    }
+  }
+
+  return {
+    id: tc.id,
+    question: tc.question,
+    regexDetected,
+    suggestedService,
+    expectedService: tc.expectedService ?? 'null',
+    retrievalSource,
+    guardReason,
+    topScore: topScore.toFixed(3),
+    topTopic,
+    needsHuman: needsHuman ?? '—',
+    pass,
+    failures,
+    elapsedMs,
+    isInScope: tc.expectedService !== null,
+    scoreNum: topScore
+  };
+}
+
+// ── Format Table Row ───────────────────────────────────────────────────────
+function formatRow(r) {
+  const status = r.pass ? 'PASS' : 'FAIL';
+  const failMsg = r.failures.length ? ` [${r.failures.join('; ')}]` : '';
+  return [
+    r.id.padEnd(16),
+    r.regexDetected.padEnd(25),
+    r.suggestedService.padEnd(25),
+    r.retrievalSource.padEnd(14),
+    String(r.topScore).padStart(6),
+    r.topTopic.substring(0, 20).padEnd(20),
+    String(r.needsHuman).padEnd(10),
+    r.guardReason.padEnd(20),
+    status + failMsg
+  ].join(' | ');
+}
+
+// ── Distribution Statistics Helper ─────────────────────────────────────────
+function computeStats(scores) {
+  if (!scores.length) return { count: 0, min: 0, max: 0, avg: 0, median: 0, p25: 0, p75: 0 };
+  const sorted = [...scores].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  const avg = sum / sorted.length;
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const p25 = sorted[Math.floor(sorted.length * 0.25)];
+  const p75 = sorted[Math.floor(sorted.length * 0.75)];
+  return { count: sorted.length, min, max, avg, median, p25, p75, sorted };
+}
+
+// ── Main Runner ────────────────────────────────────────────────────────────
+async function main() {
+  console.log(`\n=== RAG EVALUATION${NO_LLM ? ' (--no-llm mode)' : ''} ===\n`);
+
+  const header = [
+    'ID'.padEnd(16),
+    'Regex Detected'.padEnd(25),
+    'Suggested Service'.padEnd(25),
+    'Source'.padEnd(14),
+    'Score'.padStart(6),
+    'Top Topic'.padEnd(20),
+    'NeedsHuman'.padEnd(10),
+    'Guard Reason'.padEnd(20),
+    'Result'
+  ].join(' | ');
+  const sep = '-'.repeat(header.length);
+
+  console.log(header);
+  console.log(sep);
+
+  const results = [];
+  for (const tc of TEST_CASES) {
+    try {
+      const r = await evalCase(tc);
+      console.log(formatRow(r));
+      results.push(r);
+    } catch (err) {
+      console.log(`${tc.id.padEnd(16)} ERROR: ${err.message}`);
+      results.push({
+        id: tc.id,
+        pass: false,
+        isInScope: tc.expectedService !== null,
+        topScore: '0',
+        scoreNum: 0,
+        failures: [err.message]
+      });
+    }
+  }
+
+  console.log(sep);
+
+  const passed = results.filter((r) => r.pass).length;
+  console.log(`\nPASS: ${passed} / ${results.length}`);
+
+  // ── Score distributions ──────────────────────────────────────────────────
+  const inScopeCases = results.filter((r) => r.isInScope && r.guardReason !== 'unknown_field');
+  const inScopeScores = inScopeCases.map((r) => r.scoreNum).filter((s) => s > 0);
+
+  const outScopeCases = results.filter((r) => !r.isInScope);
+  const outScopeScores = outScopeCases.map((r) => r.scoreNum);
+
+  const inStats = computeStats(inScopeScores);
+  const outStats = computeStats(outScopeScores);
+
+  console.log('\n=== SCORE DISTRIBUTIONS ===');
+  console.log(`In-Scope (N=${inStats.count}):`);
+  console.log(`  Min    : ${inStats.min.toFixed(3)}`);
+  console.log(`  25th % : ${inStats.p25.toFixed(3)}`);
+  console.log(`  Median : ${inStats.median.toFixed(3)}`);
+  console.log(`  Mean   : ${inStats.avg.toFixed(3)}`);
+  console.log(`  75th % : ${inStats.p75.toFixed(3)}`);
+  console.log(`  Max    : ${inStats.max.toFixed(3)}`);
+
+  console.log(`\nOut-of-Scope (N=${outStats.count}):`);
+  console.log(`  Min    : ${outStats.min.toFixed(3)}`);
+  console.log(`  25th % : ${outStats.p25.toFixed(3)}`);
+  console.log(`  Median : ${outStats.median.toFixed(3)}`);
+  console.log(`  Mean   : ${outStats.avg.toFixed(3)}`);
+  console.log(`  75th % : ${outStats.p75.toFixed(3)}`);
+  console.log(`  Max    : ${outStats.max.toFixed(3)}`);
+
+  console.log('\n=== SEPARATION ANALYSIS ===');
+  console.log(`  Highest Out-of-Scope Score : ${outStats.max.toFixed(3)}`);
+  console.log(`  Lowest In-Scope Score      : ${inStats.min.toFixed(3)}`);
+
+  if (inStats.min > outStats.max) {
+    const separatingThreshold = ((inStats.min + outStats.max) / 2).toFixed(3);
+    console.log(`  Clean separation exists!`);
+    console.log(`  Gap: [${outStats.max.toFixed(3)}, ${inStats.min.toFixed(3)}]`);
+    console.log(`  Best separating threshold: ${separatingThreshold}`);
+  } else {
+    console.log(`  OVERLAP DETECTED: In-scope and out-of-scope scores overlap.`);
+    console.log(`  Overlap range: [${inStats.min.toFixed(3)}, ${outStats.max.toFixed(3)}]`);
+    console.log(`  A pure score threshold cannot separate all cases without routing guards.`);
+  }
+  console.log('');
+}
+
+main().catch((err) => {
+  console.error('Evaluation script error:', err);
+  process.exit(1);
+});

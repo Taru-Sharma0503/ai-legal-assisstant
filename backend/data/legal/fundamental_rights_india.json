@@ -1,0 +1,138 @@
+{
+  "service_metadata": {
+    "service_id": "india_fundamental_rights",
+    "service_name_en": "Fundamental Rights of India",
+    "service_name_hi": "भारत के मौलिक अधिकार",
+    "state": "Uttar Pradesh",
+    "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+    "portal_name": "Legislative Department, Government of India",
+    "portal_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+    "source_type": "official_government_publication",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "The constitutional provisions are national in scope; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, limitation periods, and facts with a qualified lawyer or the relevant legal services authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "india_fundamental_rights_overview",
+      "text": "This file summarizes selected provisions, not the complete list of Fundamental Rights. It summarizes Articles 14, 15, 19, 21, 21A, 23, 24, 25 and 32 in Part III of the Constitution of India, together with Article 226 on High Court writ jurisdiction; Article 226 is not part of Part III. The specific right, who can claim it, the government action involved, and applicable constitutional limitations matter. Some rights apply to all persons, while some Article 19 freedoms are guaranteed to citizens. Fundamental Rights are not all absolute; specific provisions contain restrictions or conditions. This pack gives a general summary and is not a determination of an individual's legal claim.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "fundamental_rights_overview",
+        "section": "Overview",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "india_fundamental_rights_equality",
+      "text": "Article 14 of the Constitution provides that the State shall not deny any person equality before the law or equal protection of the laws within India. Article 15 prohibits the State from discriminating against a citizen only on grounds of religion, race, caste, sex, place of birth, or any of them, subject to the full wording and exceptions in the Constitution. Whether a particular action violates these provisions depends on the facts and applicable law.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "article_14_article_15_equality",
+        "section": "Equality before Law and Non-discrimination",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "india_fundamental_rights_article_19",
+      "text": "Article 19(1) guarantees specified freedoms to citizens, including freedom of speech and expression; peaceful assembly without arms; forming associations or unions or co-operative societies; moving freely throughout India; residing and settling in any part of India; and practising a profession or carrying on an occupation, trade or business. These freedoms are subject to the restrictions allowed by the relevant clauses of Article 19. Do not describe these freedoms as unlimited or apply Article 19 automatically to non-citizens.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "article_19_freedoms",
+        "section": "Freedoms under Article 19",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "india_fundamental_rights_articles_21_21a",
+      "text": "Article 21 states that no person shall be deprived of life or personal liberty except according to procedure established by law. Article 21A requires the State to provide free and compulsory education to all children aged six to fourteen years in the manner determined by law. These provisions have distinct wording and scope; an individual case may require analysis of legislation and court decisions.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "article_21_life_liberty_education",
+        "section": "Life, Personal Liberty and Education",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "india_fundamental_rights_articles_23_24",
+      "text": "Article 23(1) prohibits trafficking in human beings, begar and other similar forms of forced labour; contraventions are punishable according to law. Under Article 23(2), the State may impose compulsory service for public purposes, provided that it does not discriminate only on grounds of religion, race, caste or class. Article 24 prohibits employing a child below fourteen years in a factory or mine or engaging the child in any other hazardous employment. The precise remedies and related statutory protections depend on the circumstances and laws that apply.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "articles_23_24_exploitation_child_labour",
+        "section": "Protection against Exploitation",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "india_fundamental_rights_article_25",
+      "text": "Article 25 protects freedom of conscience and the right of all persons to freely profess, practise and propagate religion. The text makes this right subject to public order, morality, health, and the other provisions of Part III. It should therefore not be described as unlimited or detached from those constitutional conditions.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "article_25_freedom_of_religion",
+        "section": "Freedom of Religion",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "india_fundamental_rights_remedies_articles_32_226",
+      "text": "Article 32 guarantees the right to move the Supreme Court for enforcement of Fundamental Rights and empowers the Court to issue appropriate directions, orders or writs for that purpose. Article 226 gives High Courts writ jurisdiction for enforcement of Fundamental Rights and for other purposes. The correct forum, available remedy, time limits, and procedure depend on the case. A person seeking to bring a claim should obtain case-specific legal advice; eligible persons in Uttar Pradesh may contact the legal services authorities for assistance.",
+      "metadata": {
+        "service_name": "Fundamental Rights of India",
+        "state": "Uttar Pradesh",
+        "topic": "constitutional_remedies_articles_32_226",
+        "section": "Enforcing Fundamental Rights",
+        "doc_id": "constitution_of_india",
+        "source_type": "official_government_publication",
+        "source_url": "https://www.legislative.gov.in/document/constitution-of-india-in-english",
+        "department": "Legislative Department, Ministry of Law and Justice, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

@@ -1,51 +1,27 @@
-import { Router } from 'express';
-import * as aiController from './ai.controller.js';
-import { authenticate } from '../../middleware/auth.middleware.js';
-import { validate } from '../../middleware/validate.middleware.js';
-import { createRateLimiter } from '../../utils/rateLimiter.js';
+import { Router } from "express";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { createRateLimiter } from "../../utils/rateLimiter.js";
 import {
-  createConversationSchema,
-  askAiSchema,
-  conversationIdParamSchema
-} from './ai.schema.js';
+  askHandler,
+  healthHandler,
+  createConversationHandler,
+  listConversationsHandler,
+  getConversationHandler,
+  postMessageHandler
+} from "./ai.controller.js";
 
 const router = Router();
 
-// All AI endpoints require authentication
-router.use(authenticate);
+const askRateLimiter = createRateLimiter({ keyPrefix: 'ai_ask_ip' });
+const messageRateLimiter = createRateLimiter({ keyPrefix: 'ai_msg' });
 
-// Rate limiter for AI query endpoint (e.g. 10 requests / minute as specified in Section 59)
-const aiRateLimiter = createRateLimiter({
-  max: 10,
-  windowSeconds: 60,
-  keyPrefix: 'user'
-});
+router.get("/health", healthHandler);
+router.post("/ask", askRateLimiter, askHandler);
 
-router.post(
-  '/conversations',
-  validate(createConversationSchema),
-  aiController.createConversation
-);
-
-router.get(
-  '/conversations',
-  aiController.getConversations
-);
-
-router.get(
-  '/conversations/:conversationId',
-  validate({ params: conversationIdParamSchema }),
-  aiController.getConversationById
-);
-
-router.post(
-  '/conversations/:conversationId/messages',
-  aiRateLimiter,
-  validate({
-    params: conversationIdParamSchema,
-    body: askAiSchema
-  }),
-  aiController.askAi
-);
+router.post("/conversations", authenticate, createConversationHandler);
+router.get("/conversations", authenticate, listConversationsHandler);
+router.get("/conversations/:conversationId", authenticate, getConversationHandler);
+router.post("/conversations/:conversationId/messages", authenticate, messageRateLimiter, postMessageHandler);
 
 export default router;
+
