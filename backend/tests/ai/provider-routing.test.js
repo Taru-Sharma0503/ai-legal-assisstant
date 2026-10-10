@@ -91,6 +91,42 @@ async function askIncomeCertificate() {
 }
 
 describe('generation provider routing', () => {
+  it('shares statutory-term preservation instructions across Gemini and Groq prompts', async () => {
+    const geminiService = await import('../../src/modules/ai/gemini.service.js');
+    const groqService = await import('../../src/modules/ai/groq.service.js');
+    const context = [{
+      topic: 'Article 23(1)', language: 'en',
+      text: 'Article 23(1) prohibits trafficking in human beings, begar and other similar forms of forced labour.'
+    }];
+    let geminiPrompt;
+    let groqMessages;
+    geminiService._setGeminiClient({ models: { generateContent: async ({ contents }) => {
+      geminiPrompt = contents[0];
+      return { text: 'बेगार एक प्रकार का बलात् श्रम है।' };
+    } } });
+    groqService._setGroqClient({ chat: { completions: { create: async ({ messages }) => {
+      groqMessages = messages;
+      return { choices: [{ message: { content: 'Begar is a form of forced labour.' } }] };
+    } } } });
+    try {
+      await geminiService.generateWithGemini('What is begar?', 'hi', context);
+      await groqService.generateWithGroq('What is begar?', 'hi', context);
+
+      const sharedRules = geminiService.SYSTEM_PROMPT;
+      assert.equal(groqMessages[0].content, sharedRules);
+      assert.match(sharedRules, /begar/i);
+      assert.ok(sharedRules.includes('बेगार'));
+      assert.ok(sharedRules.includes('बेघर'));
+      assert.match(sharedRules, /only when the supplied\s+context explicitly supports that relationship/i);
+      assert.match(sharedRules, /preserve the\s+original term rather than guessing/i);
+      assert.ok(geminiPrompt.includes('begar and other similar forms of forced labour'));
+      assert.ok(groqMessages[1].content.includes('begar and other similar forms of forced labour'));
+    } finally {
+      geminiService._setGeminiClient(null);
+      groqService._setGroqClient(null);
+    }
+  });
+
   it('uses Groq directly when LLM_PROVIDER=groq and still uses Gemini embeddings', async () => {
     const originalProvider = process.env.LLM_PROVIDER;
     const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;

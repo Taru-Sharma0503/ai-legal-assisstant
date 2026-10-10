@@ -2,8 +2,48 @@ import { detectLanguage } from './language.js';
 import { UNKNOWN_FIELD_KEYWORDS, UNKNOWN_FIELD_MSG, LOW_CONF_MSG } from './knowledge.js';
 import { generateWithGemini } from './gemini.service.js';
 import { generateWithGroq } from './groq.service.js';
-import { retrieve, detectService, filterChunksByService, buildSources } from './rag.service.js';
+import { retrieve, detectService, isLegalQuestion, filterChunksByService, buildSources } from './rag.service.js';
 import { aiConfig } from '../../config/ai.js';
+
+const LEGAL_QUERY_RELEVANCE = [
+  {
+    question: /cybercrime|cyber\s+crime|cyber\s+fraud|online\s+(?:payment\s+)?(?:financial\s+)?fraud|payment\s+fraud|financial\s+cyber\s+fraud|stolen\s+money|unauthori[sz]ed\s+(?:payment|transaction|transfer)|1930|cybercrime\.gov\.in|अनधिकृत\s+(?:भुगतान|लेनदेन)|पैसे.{0,35}चोरी|रुपये.{0,35}चोरी|(?:online|internet|bank|account).{0,35}(?:fraud|scam|stolen)|(?:paise|paisa|rupaye).{0,35}(?:chori|thagi)/i,
+    candidate: /cybercrime|cyber\s+crime|cyber\s+fraud|financial\s+fraud|cybercrime\.gov\.in|\b1930\b|\bi4c\b/i
+  },
+  {
+    question: /consumer|\b1915\b|\bnch\b|defective\s+product|product\s+defect|seller.{0,25}refund|refund.{0,25}(?:seller|product|purchase|order)|warrant(?:y|ies)|poor\s+service/i,
+    candidate: /consumer|\bnch\b|\b1915\b|consumer\s+commission/i
+  },
+  {
+    question: /domestic\s+violence|gharelu\s+hinsa|pwdva|protection\s+order/i,
+    candidate: /domestic\s+violence|pwdva|protection\s+order|protection\s+officer|residence\s+order|women\s+helpline|\b181\b|legal\s+aid|free\s+legal\s+services?|legal\s+services\s+authorities?\s+act/i
+  }
+];
+const CYBERCRIME_PRIORITY_RE = /\b(?:stole|stolen|theft|unauthori[sz]ed|unapproved|fraudulent)\b.{0,50}\b(?:money|funds|payment|transaction|transfer|account)\b|\b(?:money|funds)\b.{0,50}\b(?:stolen|taken|deducted)\b|\b(?:online|internet|bank|account|payment|transaction|transfer)\b.{0,50}\b(?:fraud|scam|theft|stole|stolen|unauthori[sz]ed|unapproved)\b|\b(?:online|payment)\s+(?:payment\s+)?fraud\b|ऑनलाइन\s+(?:पेमेंट|भुगतान)?\s*(?:फ्रॉड|धोखाधड़ी)|(?:पैसे|रुपये)\s*(?:चोरी|कट|निकाल)|अनधिकृत\s+(?:भुगतान|लेनदेन)|(?:ऑनलाइन|बैंक|खाते|लेनदेन).{0,50}(?:पैसे|रुपये).{0,35}(?:चोरी|कट|निकाल)/i;
+
+// Keep topic-specific legal results together for both generation and citations.
+// When this question belongs to a known topic but retrieval returns no matching
+// passage, the normal empty-candidate guard escalates instead of citing unrelated hits.
+export function filterLegalChunksForQuestion(question, chunks) {
+  const cybercrimeRule = LEGAL_QUERY_RELEVANCE[0];
+  // Theft, unauthorized transactions, and financial fraud are cyber-reporting
+  // intents even if the question also mentions a consumer grievance channel.
+  if (CYBERCRIME_PRIORITY_RE.test(question)) {
+    return chunks.filter((chunk) =>
+      cybercrimeRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+    );
+  }
+  if (/\b(?:compare|comparison|versus|vs\.?|difference between)\b|\b(?:constitution|constitutional|article\s*226|writ jurisdiction)\b/i.test(question)) {
+    return chunks;
+  }
+  const rules = LEGAL_QUERY_RELEVANCE.filter(({ question: pattern }) => pattern.test(question));
+  // Leave explicitly cross-topic queries intact so relevant statutes are not suppressed.
+  if (rules.length !== 1) return chunks;
+  const [rule] = rules;
+  return chunks.filter((chunk) =>
+    rule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+  );
+}
 
 function touchesUnknownField(question) {
   if (!question) return false;
@@ -58,7 +98,7 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
 
   // Short-circuit for fields we cannot answer (no LLM call)
   if (touchesUnknownField(question)) {
-    const detectedService = detectService(question);
+    const detectedService = isLegalQuestion(question) ? null : detectService(question);
     return {
       answer: UNKNOWN_FIELD_MSG[lang] || UNKNOWN_FIELD_MSG.en,
       needs_human: true, needsHuman: true,
@@ -75,22 +115,25 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
 
   // Retrieve – returns { chunks, retrievalSource, fallbackReason }
   const { chunks, retrievalSource, fallbackReason } = await retrieve(question, state);
+  const legalQuestion = isLegalQuestion(question);
 
   // Two-tier threshold strategy:
-  //   • regex-matched queries: use aiConfig.similarityThreshold (lenient) – the service is
-  //     already known, we only need the chunks to be relevant enough for generation.
+  //   • regex-matched service or legal queries: use aiConfig.similarityThreshold (lenient) –
+  //     the domain is already known, so chunks only need to meet the configured relevance bar.
   //   • non-regex Qdrant queries: use NON_REGEX_THRESHOLD (0.75) so near-domain OOS queries
   //     (max eval score = 0.74) are correctly rejected. Evaluation data:
   //       In-scope min: 0.70 (all regex-routed, threshold irrelevant)
   //       OOS max:      0.74 (no regex match, strict threshold needed)
-  const regexService = detectService(question);
+  const regexService = legalQuestion ? null : detectService(question);
   const NON_REGEX_THRESHOLD = 0.76; // above highest observed OOS score (0.750 in local fallback, 0.740 in Qdrant)
-  const threshold = regexService
+  const threshold = regexService || legalQuestion
     ? (retrievalSource === 'qdrant' ? aiConfig.similarityThreshold : Math.min(aiConfig.similarityThreshold, 0.3))
     : Math.max(NON_REGEX_THRESHOLD, aiConfig.similarityThreshold);
 
   // If regex matched, filter by that service; otherwise candidate is all retrieved chunks
-  const candidateChunks = regexService ? filterChunksByService(chunks, regexService) : chunks;
+  const candidateChunks = legalQuestion
+    ? filterLegalChunksForQuestion(question, chunks)
+    : regexService ? filterChunksByService(chunks, regexService) : chunks;
   const topScore = candidateChunks[0]?.score ?? 0;
 
   // Rule: use detectService(question) if it matches; otherwise use top chunk's service ONLY
@@ -98,18 +141,20 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   let suggestedServiceId = regexService;
   if (!suggestedServiceId) {
     if (candidateChunks.length > 0 && topScore >= threshold) {
-      suggestedServiceId = candidateChunks[0]?.service_id ?? null;
+      suggestedServiceId = legalQuestion ? null : candidateChunks[0]?.service_id ?? null;
     } else {
       suggestedServiceId = null;
     }
   }
 
-  const filteredChunks = suggestedServiceId ? filterChunksByService(candidateChunks, suggestedServiceId) : [];
+  const filteredChunks = legalQuestion
+    ? candidateChunks
+    : suggestedServiceId ? filterChunksByService(candidateChunks, suggestedServiceId) : [];
   const confidence = Math.round(topScore * 100) / 100;
   const sources = buildSources(filteredChunks.length > 0 ? filteredChunks : candidateChunks);
 
   if (filteredChunks.length === 0 || topScore < threshold) {
-    const guardReason = (candidateChunks.length === 0 || filteredChunks.length === 0) ? 'no_chunks' : 'similarity_threshold';
+    const guardReason = candidateChunks.length === 0 ? 'no_chunks' : 'similarity_threshold';
     // When the guard_reason is similarity_threshold or no_chunks and no service was detected by regex, suggested_service_id must be null.
     const finalSuggestedService = regexService || null;
     return {

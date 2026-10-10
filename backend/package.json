@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.js",
     "test": "node test-api.js",
     "ingest": "node scripts/ingestKnowledge.js",
+    "ingest:legal": "node scripts/ingestLegalKnowledge.js",
     "eval": "node scripts/evaluateRag.js",
     "test:ai": "node --test \"tests/ai/*.test.js\"",
     "test:rag": "node --test tests/ai/rag.test.js",

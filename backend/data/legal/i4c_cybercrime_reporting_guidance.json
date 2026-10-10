@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_i4c_cybercrime",
+    "service_name_en": "Indian Cyber Crime Coordination Centre reporting guidance",
+    "state": "Uttar Pradesh",
+    "department": "Indian Cyber Crime Coordination Centre, Ministry of Home Affairs, Government of India",
+    "portal_name": "Indian Cyber Crime Coordination Centre reporting guidance",
+    "portal_url": "https://www.mha.gov.in/en/division_of_mha/cyber-and-information-security-cis-division/Details-about-Indian-Cybercrime-Coordination-Centre-I4C-Scheme",
+    "source_type": "official_government_portal",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "i4c_national_cybercrime_reporting_overview",
+      "text": "The Ministry of Home Affairs describes the Indian Cyber Crime Coordination Centre (I4C) as a nodal point in India's response to cybercrime. The I4C scheme includes National Cybercrime Reporting, which facilitates reports of all types of cybercrime incidents, routes reports to the concerned State or Union Territory for appropriate action under law, and allows complainants to view the status of action taken. This describes the reporting component's stated role and does not guarantee a particular investigation or outcome.",
+      "metadata": {
+        "service_name": "Indian Cyber Crime Coordination Centre reporting guidance",
+        "state": "Uttar Pradesh",
+        "topic": "i4c_national_cybercrime_reporting_overview",
+        "section": "I4C and National Cybercrime Reporting overview",
+        "doc_id": "indian_cyber_crime_coordination_centre",
+        "source_type": "official_government_portal",
+        "source_url": "https://www.mha.gov.in/en/division_of_mha/cyber-and-information-security-cis-division/Details-about-Indian-Cybercrime-Coordination-Centre-I4C-Scheme",
+        "department": "Indian Cyber Crime Coordination Centre, Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_national_consumer_helpline",
+    "service_name_en": "National Consumer Helpline",
+    "state": "Uttar Pradesh",
+    "department": "Department of Consumer Affairs, Government of India",
+    "portal_name": "National Consumer Helpline",
+    "portal_url": "https://consumerhelpline.gov.in/public/about",
+    "source_type": "official_government_service",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "nch_grievance_1915",
+      "text": "The National Consumer Helpline (NCH) is a Department of Consumer Affairs pre-litigation grievance channel, distinct from adjudication by a Consumer Commission. Its official website currently lists 1915 as the toll-free number from 8 AM to 8 PM and provides online grievance options; these operating hours are time-sensitive service information, not an evergreen legal rule. The NCH says a grievance may take up to 30 days to reach a logical conclusion. This is not a guarantee that the grievance will be resolved, that a particular remedy will be provided, or that the consumer will be satisfied. If the grievance is not resolved to the consumer's satisfaction, the consumer may approach the appropriate Consumer Commission under the applicable law.",
+      "metadata": {
+        "service_name": "National Consumer Helpline",
+        "state": "Uttar Pradesh",
+        "topic": "national_consumer_helpline_grievance",
+        "section": "National Consumer Helpline 1915",
+        "doc_id": "national_consumer_helpline",
+        "source_type": "official_government_service",
+        "source_url": "https://consumerhelpline.gov.in/public/about",
+        "department": "Department of Consumer Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

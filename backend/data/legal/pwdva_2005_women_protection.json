@@ -1,0 +1,52 @@
+{
+  "service_metadata": {
+    "service_id": "india_pwdva_2005",
+    "service_name_en": "Protection of Women from Domestic Violence Act, 2005",
+    "state": "Uttar Pradesh",
+    "department": "Ministry of Women and Child Development, Government of India",
+    "portal_name": "India Code",
+    "portal_url": "https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
+    "source_type": "official_legislation",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "pwdva_2005_domestic_violence_scope",
+      "text": "Section 3 of the Protection of Women from Domestic Violence Act, 2005 covers conduct that harms, injures, endangers, or tends to do so to an aggrieved woman's physical or mental health, safety, life, limb, or well-being in a domestic relationship. The statutory forms include physical, sexual, verbal and emotional, and economic abuse; conduct connected with coercive unlawful demands; and threats or other injury covered by the section. Whether particular facts meet the definition requires assessment under the Act.",
+      "metadata": {
+        "service_name": "Protection of Women from Domestic Violence Act, 2005",
+        "state": "Uttar Pradesh",
+        "topic": "pwdva_definition_domestic_violence",
+        "section": "PWDVA section 3",
+        "doc_id": "protection_of_women_from_domestic_violence_act_2005",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
+        "department": "Ministry of Women and Child Development, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "pwdva_2005_remedies",
+      "text": "Under section 12, an aggrieved person, a Protection Officer, or another person on her behalf may apply to a Magistrate for relief under the Act. Under section 18, a protection order is made by the Magistrate; it is not a police-issued order. For a residence order under section 19(1), section 19(5) permits the Magistrate to direct the officer in charge of the police station within whose local limits the shared household is situated or the respondent resides to assist the aggrieved person or a person applying on her behalf with implementation of that residence order. Police assistance under such a direction does not make the police the issuer of the order. Depending on the law and facts, the Act provides for remedies including protection, residence, monetary, custody, and compensation orders, and interim or ex parte orders. The Act also recognizes a right to reside in a shared household under section 17. A Magistrate decides whether relief is appropriate; an application does not guarantee that a particular order will be granted.",
+      "metadata": {
+        "service_name": "Protection of Women from Domestic Violence Act, 2005",
+        "state": "Uttar Pradesh",
+        "topic": "pwdva_application_and_reliefs",
+        "section": "PWDVA sections 12 and 17 through 23",
+        "doc_id": "protection_of_women_from_domestic_violence_act_2005",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
+        "department": "Ministry of Women and Child Development, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

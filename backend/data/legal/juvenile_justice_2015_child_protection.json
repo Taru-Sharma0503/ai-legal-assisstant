@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_jj_act_2015",
+    "service_name_en": "Juvenile Justice (Care and Protection of Children) Act, 2015",
+    "state": "Uttar Pradesh",
+    "department": "Ministry of Women and Child Development, Government of India",
+    "portal_name": "India Code",
+    "portal_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/2148?view_type=browse",
+    "source_type": "official_legislation",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "jj_act_2015_child_welfare_committee",
+      "text": "Section 2(12) of the Juvenile Justice (Care and Protection of Children) Act, 2015 defines a child as a person who has not completed eighteen years of age. Section 2(14) defines a 'child in need of care and protection' through specified circumstances; whether a particular child falls within that definition depends on those statutory criteria and the facts. Section 27 provides for a Child Welfare Committee in each district. Under sections 29 and 30, the Committee has the authority and functions assigned by the Act for cases concerning children in need of care and protection, subject to the Act's provisions. For an immediate child-safety concern, contact local police or Child Helpline 1098; the competent child-protection authorities assess the matter under the Act.",
+      "metadata": {
+        "service_name": "Juvenile Justice (Care and Protection of Children) Act, 2015",
+        "state": "Uttar Pradesh",
+        "topic": "jj_child_in_need_of_care_and_protection",
+        "section": "JJ Act sections 2(12), 2(14), 27, 29 and 30",
+        "doc_id": "juvenile_justice_care_and_protection_of_children_act_2015",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/2148?view_type=browse",
+        "department": "Ministry of Women and Child Development, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

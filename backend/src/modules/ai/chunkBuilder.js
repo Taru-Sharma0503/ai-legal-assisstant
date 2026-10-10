@@ -82,6 +82,7 @@ export function buildChunks(svc, fileName) {
       return {
         ...base,
         id: chunkId,
+        knowledge_domain: svc.knowledge_domain || 'citizen_service',
         source_ref: chunkId,
         source_type: cm.source_type || base.source_type,
         source_url: cm.source_url || base.source_url,

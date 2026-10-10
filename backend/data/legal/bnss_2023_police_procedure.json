@@ -1,0 +1,103 @@
+{
+  "service_metadata": {
+    "service_id": "india_bnss_2023",
+    "service_name_en": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+    "state": "Uttar Pradesh",
+    "department": "Ministry of Home Affairs, Government of India",
+    "portal_name": "India Code",
+    "portal_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/20099?view_type=browse",
+    "source_type": "official_legislation",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "bnss_2023_cognizable_information",
+      "text": "Under section 173(1) of the Bharatiya Nagarik Suraksha Sanhita, 2023, information about a cognizable offence may be given to a police station irrespective of the area where the offence was committed. If given orally, the officer in charge must reduce it to writing, read it over to the informant, and obtain the informant's signature; if given by electronic communication, it is taken on record when signed by the person giving it within three days. The information, whether given orally or in writing, must be signed by the person giving it. Under section 173(2), a copy of the recorded information is to be given forthwith and free of cost to the informant or victim. Section 173(3) permits a preliminary inquiry only for information about a cognizable offence punishable with imprisonment of three years or more but less than seven years, with prior permission from an officer not below the rank of Deputy Superintendent of Police; the officer in charge may consider the nature and gravity of the offence, and the inquiry must be completed within fourteen days to ascertain whether a prima facie case exists to proceed. This is a limited statutory option, not a general requirement or open-ended delay. Apply the statutory conditions to the facts and seek advice if police decline to record information.",
+      "metadata": {
+        "service_name": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+        "state": "Uttar Pradesh",
+        "topic": "bnss_cognizable_information",
+        "section": "BNSS sections 173(1), 173(2) and 173(3)",
+        "doc_id": "bharatiya_nagarik_suraksha_sanhita_2023",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/20099?view_type=browse",
+        "department": "Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "bnss_2023_refusal_route",
+      "text": "If an officer in charge refuses to record information about a cognizable offence, section 173(4) permits the aggrieved person to send the substance of the information in writing and by post to the Superintendent of Police concerned. If the SP is satisfied that the information discloses a cognizable offence, the SP must investigate personally or direct a subordinate police officer to investigate; if appropriate action is not taken, the person may apply to a Magistrate empowered under section 210. Under section 175(3), such a Magistrate may, after considering an application supported by an affidavit under section 173(4), making any inquiry considered necessary, and considering the police officer's submission, order an investigation. These steps do not make an investigation order automatic or guarantee a particular outcome; a lawyer or Legal Services Authority can advise on the facts.",
+      "metadata": {
+        "service_name": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+        "state": "Uttar Pradesh",
+        "topic": "bnss_refusal_to_record_information",
+        "section": "BNSS sections 173(4), 175(3) and 210",
+        "doc_id": "bharatiya_nagarik_suraksha_sanhita_2023",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/20099?view_type=browse",
+        "department": "Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "bnss_2023_arrest_information",
+      "text": "Under section 47 of the Bharatiya Nagarik Suraksha Sanhita, when a person is arrested without warrant, the police officer or other person making the arrest must forthwith communicate the full particulars of the offence or other grounds for arrest. The arrested person must also be informed of the right to bail where the offence is bailable. Under section 48, the arresting officer must promptly inform a relative, friend, or other person nominated by the arrested person about the arrest and place of detention, and record who was informed; the officer must also inform the designated police officer in the district. Section 37 requires the State to designate a police officer in every district and police station, not below the rank of Assistant Sub-Inspector, to maintain information about arrested persons. When the arrested person is brought before a Magistrate, the Magistrate must satisfy themself that the requirements of section 48 have been complied with.",
+      "metadata": {
+        "service_name": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+        "state": "Uttar Pradesh",
+        "topic": "bnss_arrest_grounds_and_notice",
+        "section": "BNSS sections 37, 47 and 48",
+        "doc_id": "bharatiya_nagarik_suraksha_sanhita_2023",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/20099?view_type=browse",
+        "department": "Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "bnss_2023_advocate_interrogation",
+      "text": "Section 38 of the Bharatiya Nagarik Suraksha Sanhita states that a person who is arrested and interrogated by police is entitled to meet an advocate of their choice during interrogation, though not throughout interrogation. This describes the statutory right in that setting; it should not be expanded into a claim that counsel must remain present for every moment of questioning.",
+      "metadata": {
+        "service_name": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+        "state": "Uttar Pradesh",
+        "topic": "bnss_advocate_during_interrogation",
+        "section": "BNSS section 38",
+        "doc_id": "bharatiya_nagarik_suraksha_sanhita_2023",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/20099?view_type=browse",
+        "department": "Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "bnss_2023_arrested_person_production",
+      "text": "Under section 57, a police officer making an arrest without warrant must, without unnecessary delay and subject to the Sanhita's bail provisions, take or send the arrested person before a Magistrate having jurisdiction in the case or before the officer in charge of a police station. Section 58 provides that a person arrested without warrant must not be detained for more than 24 hours, excluding the time necessary for the journey to the Magistrate, unless a Magistrate authorizes further detention under section 187. Ask a lawyer or Legal Services Authority to assess a specific detention concern.",
+      "metadata": {
+        "service_name": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+        "state": "Uttar Pradesh",
+        "topic": "bnss_arrested_person_production",
+        "section": "BNSS sections 57, 58 and 187",
+        "doc_id": "bharatiya_nagarik_suraksha_sanhita_2023",
+        "source_type": "official_legislation",
+        "source_url": "https://www.indiacode.nic.in/indiacode/handle/123456789/20099?view_type=browse",
+        "department": "Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

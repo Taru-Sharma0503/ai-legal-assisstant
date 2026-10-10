@@ -64,6 +64,17 @@ export function detectService(question) {
   }
   return null;
 }
+const LEGAL_TOPIC_RE = /fundamental rights?|constitutional rights?|article\s*(14|15|19|21|21a|23|24|25|32|226)|legal aid|free legal services?|legal services authorities? act|lok adalat|free lawyer|free vakil|मौलिक अधिकार|संवैधानिक अधिकार|नि(?:ः|:)?शुल्क\s+(?:कानूनी|विधिक)\s+सहायता|मुफ्त\s+कानूनी\s+सहायता|कानूनी सहायता|कानूनी सेवा|कानूनी मदद|मुफ्त वकील|विधिक सेवा|moolik adhikar|samvaidhanik adhikar|muft kanooni madad|free legal madad|free vakil|muft vakil|kanooni sahayata|\b(?:bnss|bharatiya nagarik suraksha sanhita|zero fir|fir|fir complaint|police complaint|police arrest|arrested by police|arrest rights|lawyer during interrogation|advocate during interrogation|domestic violence|women(?:'s)? helpline|child protection|child abuse|child safety|bachchon ki safety|bachon ki safety|pocso|juvenile justice|cybercrime|cyber crime|cyber fraud|online fraud|consumer rights|consumer complaint|consumer grievance|consumer helpline|national consumer helpline|nch|1930|1098|181|1915|defective product|product defect|warranty|poor service|seller.{0,25}refund|refund.{0,25}(?:seller|product|purchase|order))\b|\b(?:police|officer in charge)\b.{0,100}\brefus(?:e|es|ed|al|ing)\b.{0,80}\b(?:record|register)\b.{0,80}\b(?:information|complaint)\b.{0,80}\b(?:cognizable|cognisable)\s+offen[cs]e\b|घरेलू हिंसा|महिला हेल्पलाइन|बाल हेल्पलाइन|बाल सुरक्षा|बच्चों की सुरक्षा|बाल शोषण|यौन अपराध.*बच्च|साइबर अपराध|साइबर धोखाधड़ी|ऑनलाइन धोखाधड़ी|उपभोक्ता अधिकार|उपभोक्ता शिकायत|उपभोक्ता हेल्पलाइन|एफआईआर|प्राथमिकी|जीरो एफआईआर|गिरफ्तारी|पुलिस शिकायत|पुलिस अधिकार|पूछताछ में वकील|मजिस्ट्रेट|महिला अधिकार|बच्चों के अधिकार|cyber dhokha|online thagi|gharelu hinsa|mahila helpline|bachchon ki suraksha|bachon ki suraksha|bal suraksha|upbhokta shikayat|upbhokta adhikar|police me fir|police giraftari|girftari ke adhikar/i;
+const CYBERCRIME_REPORTING_RE = /\b(?:online payment fraud|payment fraud|financial cyber fraud|cyber financial fraud|online financial fraud|money stolen online|stolen money online|report cybercrime|report cyber crime|cybercrime\.gov\.in)\b|\b(?:online|internet|digital|bank|account|payment|transaction|transfer)\b.{0,50}\b(?:fraud|scam|theft|stole|stolen|unauthori[sz]ed|unapproved)\b|\b(?:stole|stolen|theft|unauthori[sz]ed|unapproved|fraudulent)\b.{0,50}\b(?:money|funds|payment|transaction|transfer|account)\b|\b(?:money|funds)\b.{0,50}\b(?:stolen|taken|deducted)\b.{0,50}\b(?:online|bank|account|transaction|payment|report)\b|\b(?:online payment|payment)\b.{0,32}\b(?:fraud|scam|thagi)\b|\b(?:paise|paisa|rupaye)\b.{0,32}\b(?:chori|thagi|fraud)\b|ऑनलाइन\s+(?:पेमेंट|भुगतान|फ्रॉड|धोखाधड़ी)|(?:ऑनलाइन|बैंक|खाते|लेनदेन).{0,50}(?:पैसे|रुपये).{0,32}(?:चोरी|कट|निकाल|धोखाधड़ी)|(?:पैसे|रुपये).{0,32}(?:चोरी|ठगी|धोखाधड़ी).{0,50}(?:ऑनलाइन|बैंक|खाते|लेनदेन|रिपोर्ट)|वित्तीय\s+साइबर\s+धोखाधड़ी|साइबरक्राइम\.gov\.in/i;
+export function isLegalQuestion(question) {
+  if (typeof question !== 'string' || !question) return false;
+  const normalized = question
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return LEGAL_TOPIC_RE.test(normalized) || CYBERCRIME_REPORTING_RE.test(normalized);
+}
 export function filterChunksByService(chunks, targetServiceId) {
   if (!chunks || chunks.length === 0) return chunks;
   if (targetServiceId) {
@@ -156,18 +167,31 @@ export async function embedQuery(text) {
 let localChunksCache = null;
 export function loadLocalChunks() {
   if (localChunksCache) return localChunksCache;
-  const dataDir = path.resolve(process.cwd(), 'data', 'services');
   localChunksCache = [];
-  if (!fs.existsSync(dataDir)) return localChunksCache;
-  const files = fs.readdirSync(dataDir).filter((f) => f.endsWith('.json'));
-  for (const file of files) {
+  const dataDirs = [
+    { directory: path.resolve(process.cwd(), 'data', 'services'), domain: 'citizen_service' },
+    { directory: path.resolve(process.cwd(), 'data', 'legal'), domain: 'legal_rights' }
+  ];
+  for (const { directory, domain } of dataDirs) {
+    if (!fs.existsSync(directory)) continue;
+    let files;
     try {
-      const raw = fs.readFileSync(path.join(dataDir, file), 'utf8');
-      const svc = JSON.parse(raw);
-      const chunks = buildChunks(svc, file);
-      localChunksCache.push(...chunks);
+      files = fs.readdirSync(directory).filter((file) => file.endsWith('.json'));
     } catch (err) {
-      console.warn(`[RAG] Failed to load local knowledge file ${file}:`, err.message);
+      console.warn(`[RAG] Failed to list local ${domain} knowledge:`, err.message);
+      continue;
+    }
+    for (const file of files) {
+      try {
+        const svc = JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8'));
+        const chunks = buildChunks(svc, file).map((chunk) => ({
+          ...chunk,
+          knowledge_domain: domain
+        }));
+        localChunksCache.push(...chunks);
+      } catch (err) {
+        console.warn(`[RAG] Failed to load local ${domain} knowledge file ${file}:`, err.message);
+      }
     }
   }
   return localChunksCache;
@@ -177,7 +201,7 @@ export function loadLocalChunks() {
  * Scores are in range [0.4, 0.95] based on word overlap between query and chunk.
  * retrievalSource="local_fallback" always accompanies these scores.
  */
-function retrieveLocal(question, state, topK = 5, targetServiceId = null) {
+function retrieveLocal(question, state, topK = 5, targetServiceId = null, targetDomain = null) {
   const allLocal = loadLocalChunks();
   const qLower = question.toLowerCase();
   const words = qLower.match(/[a-z0-9\u0900-\u097F]+/g) || [];
@@ -186,6 +210,7 @@ function retrieveLocal(question, state, topK = 5, targetServiceId = null) {
       (c) =>
         c.state.toLowerCase() === state.toLowerCase() &&
         c.verified &&
+        (!targetDomain || (c.knowledge_domain || 'citizen_service') === targetDomain) &&
         (!targetServiceId || c.service_id === targetServiceId)
     )
     .map((c) => {
@@ -284,6 +309,7 @@ async function hydrateQdrantHitsFromPostgres(hits, state) {
  * keyword-matching.
  */
 export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
+  const legal = isLegalQuestion(question);
   const detectedService = detectService(question);
   console.log('[RAG] Detected service:', detectedService, '| Retrieval starting…');
   const client = getQdrantClient();
@@ -295,14 +321,16 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
         must: [
           { key: 'state', match: { value: state } },
           { key: 'verified', match: { value: true } },
-          ...(detectedService
+          ...(legal ? [{ key: 'knowledge_domain', match: { value: 'legal_rights' } }] : []),
+          ...(!legal && detectedService
             ? [{ key: 'service_id', match: { value: detectedService } }]
             : [])
         ]
       };
       // Use client.query() — the current non-deprecated Qdrant JS API.
       // Returns QueryResponse = ScoredPoint[]
-      const queryRes = await client.query(aiConfig.qdrant.collection, {
+      const collection = legal ? 'legal_rights_chunks' : aiConfig.qdrant.collection;
+      const queryRes = await client.query(collection, {
         query: vector,
         filter,
         limit: topK,
@@ -329,7 +357,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
           }
 
           return {
-            chunks: retrieveLocal(question, state, topK, detectedService),
+            chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
             retrievalSource: 'local_fallback',
             fallbackReason: 'postgres_no_verified_chunks'
           };
@@ -344,7 +372,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
           }
 
           return {
-            chunks: retrieveLocal(question, state, topK, detectedService),
+            chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
             retrievalSource: 'local_fallback',
             fallbackReason: 'postgres_error'
           };
@@ -357,7 +385,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
       }
       console.warn('[RAG] Falling back to local keyword search (qdrant_zero_hits)');
       return {
-        chunks: retrieveLocal(question, state, topK, detectedService),
+        chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
         retrievalSource: 'local_fallback',
         fallbackReason: 'qdrant_zero_hits'
       };
@@ -368,7 +396,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
       }
       console.warn('[RAG] Falling back to local keyword search (qdrant_error)');
       return {
-        chunks: retrieveLocal(question, state, topK, detectedService),
+        chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
         retrievalSource: 'local_fallback',
         fallbackReason: 'qdrant_error'
       };
@@ -382,7 +410,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
   }
   console.warn('[RAG] Falling back to local keyword search (' + noClientReason + ')');
   return {
-    chunks: retrieveLocal(question, state, topK, detectedService),
+    chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
     retrievalSource: 'local_fallback',
     fallbackReason: noClientReason
   };
