@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_national_cybercrime_portal",
+    "service_name_en": "National Cyber Crime Reporting Portal",
+    "state": "Uttar Pradesh",
+    "department": "Indian Cyber Crime Coordination Centre, Ministry of Home Affairs, Government of India",
+    "portal_name": "National Cyber Crime Reporting Portal",
+    "portal_url": "https://cybercrime.gov.in/",
+    "source_type": "official_government_portal",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "cybercrime_portal_reporting",
+      "text": "Official reporting guidance: the Government of India's National Cyber Crime Reporting Portal at cybercrime.gov.in provides an online channel for reporting cybercrime complaints and directs people affected by online financial fraud to report promptly online or call 1930. Practical steps: preserve transaction IDs, dates, messages, and relevant screenshots. If an account or payment transaction was unauthorized, promptly notify the bank or payment provider through its official fraud-reporting process. For other fraud types, contact the relevant provider through its official fraud-reporting process. Never share an OTP, password, PIN, or full payment credentials in a chat. Reporting does not guarantee recovery of funds or a particular police or provider action.",
+      "metadata": {
+        "service_name": "National Cyber Crime Reporting Portal",
+        "state": "Uttar Pradesh",
+        "topic": "cybercrime_reporting_portal",
+        "section": "National Cyber Crime Reporting Portal",
+        "doc_id": "national_cyber_crime_reporting_portal",
+        "source_type": "official_government_portal",
+        "source_url": "https://cybercrime.gov.in/",
+        "department": "Indian Cyber Crime Coordination Centre, Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

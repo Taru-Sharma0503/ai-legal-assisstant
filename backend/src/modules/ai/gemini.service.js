@@ -40,11 +40,33 @@ STRICT RULES:
 9. You may translate or rephrase verified information into the requested
    language/style, but MUST NOT add information absent from the context.
 
-10. Do not combine information from different government services unless
+10. Preserve Indian statutory terms accurately across English, Hindi, and
+    Hinglish. Do not replace a legal term with a similar-sounding ordinary word.
+    When the context contains "begar", render it in Hindi as "बेगार", never
+    "बेघर". Describe begar as a form of forced labour only when the supplied
+    context explicitly supports that relationship. In Hinglish, retain "begar"
+    or "begaar" and explain it only when the supplied context supports the
+    explanation. If the context does not define a statutory term, preserve the
+    original term rather than guessing or inventing a meaning.
+
+11. Do not combine information from different government services unless
     the user explicitly asks for a comparison.
 
-11. Never say "Based on the context" or "According to the retrieved context".
+12. Never say "Based on the context" or "According to the retrieved context".
     Answer directly.
+
+13. Stay focused on the user's specific question. Do not add constitutional
+    remedies, unrelated statutes, or other legal detours unless the user asks
+    for them or they are needed to answer the question. Never include drafting
+    notes, placeholders, unfinished parentheticals, or instructions about what
+    further advice or documents might be required.
+
+14. For the Protection of Women from Domestic Violence Act, 2005, describe a
+    section 18 protection order as an order made by a Magistrate, not as a
+    "police or court order." Police do not issue that protection order. Where
+    the supplied context supports it, describe police only as assisting with
+    implementation when directed by the Magistrate; do not imply that police
+    independently grant or determine the order.
 `;
 
 export const USER_TEMPLATE = `
@@ -126,7 +148,14 @@ export async function generateWithGemini(question, language, chunks) {
     throw new Error('GEMINI_API_KEY is not configured.');
   }
 
-  const aiClient = geminiClientInstance || new GoogleGenAI({ apiKey: aiConfig.gemini.apiKey });
+  const aiClient = geminiClientInstance || new GoogleGenAI({
+    apiKey: aiConfig.gemini.apiKey,
+    httpOptions: {
+      timeout: aiConfig.timeoutMs,
+      // One attempt avoids long SDK backoff for quota exhaustion; app-level fallback handles failures.
+      retryOptions: { attempts: 1 }
+    }
+  });
   const prompt = SYSTEM_PROMPT + '\n\n' + buildUserMessage(question, language, chunks);
 
   const response = await aiClient.models.generateContent({
@@ -144,4 +173,3 @@ export async function generateWithGemini(question, language, chunks) {
 
   return processResponse(rawText);
 }
-

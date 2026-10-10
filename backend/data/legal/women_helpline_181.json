@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_women_helpline_181",
+    "service_name_en": "Women Helpline 181",
+    "state": "Uttar Pradesh",
+    "department": "Ministry of Women and Child Development, Government of India",
+    "portal_name": "Women Helpline 181",
+    "portal_url": "https://wcd.gov.in/offerings/women--helpline--scheme",
+    "source_type": "official_government_service",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "women_helpline_181_support",
+      "text": "The Ministry of Women and Child Development describes Women Helpline 181 as a toll-free 24-hour telephone service for women seeking support or information. It can connect callers with emergency response services, including police, fire, or ambulance, and with One Stop Centres and other support. A woman in distress, or someone calling on her behalf, may contact 181. In an emergency, call 181 or the applicable emergency service; the helpline does not decide legal claims or guarantee a particular outcome.",
+      "metadata": {
+        "service_name": "Women Helpline 181",
+        "state": "Uttar Pradesh",
+        "topic": "women_helpline_181",
+        "section": "Official Women Helpline 181",
+        "doc_id": "women_helpline_181",
+        "source_type": "official_government_service",
+        "source_url": "https://wcd.gov.in/offerings/women--helpline--scheme",
+        "department": "Ministry of Women and Child Development, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

@@ -63,6 +63,10 @@ export const AI_CONFIG = {
 };
 
 export const aiConfig = {
+  get generationProvider() {
+    const provider = (process.env.LLM_PROVIDER || env.LLM_PROVIDER || 'gemini').toLowerCase();
+    return ['gemini', 'groq', 'auto'].includes(provider) ? provider : 'gemini';
+  },
   gemini: {
     apiKey: env.GEMINI_API_KEY,
     model: env.GEMINI_MODEL || 'gemini-2.5-flash',

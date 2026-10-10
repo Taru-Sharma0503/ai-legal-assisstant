@@ -1,0 +1,104 @@
+{
+  "service_metadata": {
+    "service_id": "up_free_legal_aid",
+    "service_name_en": "Free Legal Aid in Uttar Pradesh",
+    "service_name_hi": "उत्तर प्रदेश में निःशुल्क विधिक सहायता",
+    "state": "Uttar Pradesh",
+    "department": "Uttar Pradesh State Legal Services Authority (UPSLSA)",
+    "portal_name": "Uttar Pradesh State Legal Services Authority",
+    "portal_url": "https://uttarpradesh.nalsa.gov.in/legal-aid/",
+    "source_type": "official_government_authority",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "Uttar Pradesh authority guidance. Income limits and procedures can change; check the current official UPSLSA guidance and competent authority."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, limitation periods, and facts with a qualified lawyer or the relevant legal services authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "up_free_legal_aid_overview",
+      "text": "The Uttar Pradesh State Legal Services Authority (UPSLSA) provides information about free legal aid for people covered by Section 12 of the Legal Services Authorities Act, 1987. UPSLSA describes legal services as including free legal aid, legal awareness, and support through Lok Adalats for compromise-based settlement of suitable disputes. Its FAQ says legal aid may include legal assistance before courts, authorities, tribunals and commissions, and may cover necessary litigation expenses, including court and advocate fees, for eligible beneficiaries. The authority decides eligibility and the appropriate assistance.",
+      "metadata": {
+        "service_name": "Free Legal Aid in Uttar Pradesh",
+        "state": "Uttar Pradesh",
+        "topic": "free_legal_aid_overview",
+        "section": "What Free Legal Services Include",
+        "doc_id": "upslsa_legal_aid",
+        "source_type": "official_government_authority",
+        "source_url": "https://uttarpradesh.nalsa.gov.in/legal-aid/",
+        "department": "Uttar Pradesh State Legal Services Authority (UPSLSA)",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "up_free_legal_aid_eligibility",
+      "text": "UPSLSA's published Legal Aid page lists annual income below ₹3,00,000 among its broad eligibility categories under Section 12 of the Legal Services Authorities Act, 1987. The referenced Uttar Pradesh government order, “Enhancement of Eligibility and Annual Income Limit for Legal Services up to ₹3.00 Lakh,” sets the ₹3 lakh annual income limit for matters before courts other than the Supreme Court. For matters before the Supreme Court, check the applicable income criterion against the current Central Government rules. These are summaries of published guidance, not a decision on any person's eligibility; the competent Legal Services Authority should confirm eligibility against current rules and facts.",
+      "metadata": {
+        "service_name": "Free Legal Aid in Uttar Pradesh",
+        "state": "Uttar Pradesh",
+        "topic": "upslsa_eligibility_categories_income",
+        "section": "Who May Be Eligible",
+        "doc_id": "upslsa_legal_aid",
+        "source_type": "official_government_authority",
+        "source_url": "https://uttarpradesh.nalsa.gov.in/legal-aid/",
+        "department": "Uttar Pradesh State Legal Services Authority (UPSLSA)",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "up_free_legal_aid_where_to_apply",
+      "text": "UPSLSA states that a person may approach: the Taluk Legal Services Committee at the relevant court complex; the District Legal Services Authority (DLSA) at the district court headquarters; the Uttar Pradesh State Legal Services Authority for matters handled at State level; the relevant High Court Legal Services Committee; or the Supreme Court Legal Services Committee for matters before the Supreme Court. Contact the authority appropriate for the location and stage of the matter to confirm the correct office and current process.",
+      "metadata": {
+        "service_name": "Free Legal Aid in Uttar Pradesh",
+        "state": "Uttar Pradesh",
+        "topic": "where_to_apply_for_legal_aid",
+        "section": "Where to Seek Legal Aid",
+        "doc_id": "upslsa_legal_aid",
+        "source_type": "official_government_authority",
+        "source_url": "https://uttarpradesh.nalsa.gov.in/legal-aid/",
+        "department": "Uttar Pradesh State Legal Services Authority (UPSLSA)",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "up_free_legal_aid_application_methods",
+      "text": "UPSLSA says an application for free legal services may be sent in writing, made using a form prepared by the authority, or made orally. If the application is oral, an officer of the legal services authority or a paralegal volunteer may assist the applicant. The national Legal Services Management System also provides an online Legal Aid / Grievance Application: https://scourtapp.nic.in/lsams/nologin/applicationFiling.action?requestLocale=en. The official UPSLSA Legal Aid page gives the routes and links. Use the current official portal and follow its instructions; submitting an application does not itself guarantee approval.",
+      "metadata": {
+        "service_name": "Free Legal Aid in Uttar Pradesh",
+        "state": "Uttar Pradesh",
+        "topic": "legal_aid_application_methods",
+        "section": "How to Apply",
+        "doc_id": "upslsa_legal_aid",
+        "source_type": "official_government_authority",
+        "source_url": "https://uttarpradesh.nalsa.gov.in/legal-aid/",
+        "department": "Uttar Pradesh State Legal Services Authority (UPSLSA)",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    },
+    {
+      "chunk_id": "up_free_legal_aid_case_scope",
+      "text": "UPSLSA's published FAQ states that an eligible person may seek legal consultation even without intending to pursue a court case and may apply for legal aid at different stages, including appeal. Separately, Section 13(1) of the Legal Services Authorities Act, 1987 provides for legal services to a person satisfying Section 12 criteria where the competent authority is satisfied that the person has a prima facie case to prosecute or defend. The competent Legal Services Authority determines the appropriate assistance under the applicable law and rules; eligibility alone does not guarantee approval.",
+      "metadata": {
+        "service_name": "Free Legal Aid in Uttar Pradesh",
+        "state": "Uttar Pradesh",
+        "topic": "legal_aid_case_scope_and_assessment",
+        "section": "Case Types and Assessment",
+        "doc_id": "upslsa_legal_aid",
+        "source_type": "official_government_authority",
+        "source_url": "https://uttarpradesh.nalsa.gov.in/faqs/",
+        "department": "Uttar Pradesh State Legal Services Authority (UPSLSA)",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}

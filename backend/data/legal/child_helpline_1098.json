@@ -1,0 +1,35 @@
+{
+  "service_metadata": {
+    "service_id": "india_child_helpline_1098",
+    "service_name_en": "Child Helpline 1098",
+    "state": "Uttar Pradesh",
+    "department": "Ministry of Women and Child Development, Government of India",
+    "portal_name": "Child Helpline 1098",
+    "portal_url": "https://www.wcd.gov.in/child/child-helpline",
+    "source_type": "official_government_service",
+    "verified": true,
+    "review_status": "human_reviewed",
+    "scope_note": "National source; state is set to Uttar Pradesh only to align with the existing UP-focused retrieval filter."
+  },
+  "knowledge_domain": "legal_rights",
+  "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
+  "vector_db_chunks": [
+    {
+      "chunk_id": "child_helpline_1098_support",
+      "text": "The Ministry of Women and Child Development states that Child Helpline 1098 operates under Mission Vatsalya in coordination with State and District functionaries and is integrated with Emergency Response Support System 112. The official page describes a 24-hour dedicated State/UT control room and round-the-clock district Child Helpline units for children in crisis. Contact 1098 for child-protection support; use 112 for emergency response where needed. Avoid sharing a child's identifying details in a public chat.",
+      "metadata": {
+        "service_name": "Child Helpline 1098",
+        "state": "Uttar Pradesh",
+        "topic": "child_helpline_1098",
+        "section": "Official Child Helpline 1098",
+        "doc_id": "child_helpline_1098",
+        "source_type": "official_government_service",
+        "source_url": "https://www.wcd.gov.in/child/child-helpline",
+        "department": "Ministry of Women and Child Development, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "human_reviewed"
+      }
+    }
+  ]
+}
