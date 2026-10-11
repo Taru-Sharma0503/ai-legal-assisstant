@@ -154,8 +154,8 @@ async function saveKnowledgeToPostgres(
     sourceType:
       firstChunk.source_type ||
       'GOVERNMENT',
-    verified: chunks.every(
-      (chunk) => chunk.verified !== false
+    verified: chunks.length > 0 && chunks.every(
+      (chunk) => chunk.verified === true
     )
   };
   await prisma.knowledgeSource.upsert({
@@ -198,7 +198,7 @@ async function saveKnowledgeToPostgres(
         chunk.region ||
         'Uttar Pradesh',
       verified:
-        chunk.verified !== false
+        chunk.verified === true
     })
   );
   await prisma.knowledgeChunk.createMany({
@@ -483,7 +483,7 @@ async function runIngestion() {
           chunk.region ||
           'Uttar Pradesh',
         verified:
-          chunk.verified !== false,
+          chunk.verified === true,
         source_type:
           chunk.source_type ||
           'official_government_portal',

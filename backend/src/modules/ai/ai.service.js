@@ -2,17 +2,49 @@ import { detectLanguage } from './language.js';
 import { UNKNOWN_FIELD_KEYWORDS, UNKNOWN_FIELD_MSG, LOW_CONF_MSG } from './knowledge.js';
 import { generateWithGemini } from './gemini.service.js';
 import { generateWithGroq } from './groq.service.js';
-import { retrieve, detectService, isLegalQuestion, filterChunksByService, buildSources } from './rag.service.js';
+import { retrieve, detectService, isLegalQuestion, isCybercrimeReportingQuestion, filterChunksByService, buildSources } from './rag.service.js';
 import { aiConfig } from '../../config/ai.js';
+
+const ONLINE_FIR_QUESTION_RE = /\b(?:online|internet|e-?filing|e-?fir)\b.{0,50}\b(?:fir|first information report)\b|\b(?:fir|first information report)\b.{0,50}\b(?:online|internet|portal)\b/i;
+const BUILDER_COMPLAINT_QUESTION_RE = /\b(?:builder|real estate|property developer|housing project)\b.{0,100}\bconsumer complaint\b|\bconsumer complaint\b.{0,100}\b(?:builder|real estate|property developer|housing project)\b/i;
+const CONSUMER_ACT_QUESTION_RE = /consumer protection act|section\s+2\s*\(\s*6\s*\)|statutory definition of a consumer complaint/i;
 
 const LEGAL_QUERY_RELEVANCE = [
   {
     question: /cybercrime|cyber\s+crime|cyber\s+fraud|online\s+(?:payment\s+)?(?:financial\s+)?fraud|payment\s+fraud|financial\s+cyber\s+fraud|stolen\s+money|unauthori[sz]ed\s+(?:payment|transaction|transfer)|1930|cybercrime\.gov\.in|अनधिकृत\s+(?:भुगतान|लेनदेन)|पैसे.{0,35}चोरी|रुपये.{0,35}चोरी|(?:online|internet|bank|account).{0,35}(?:fraud|scam|stolen)|(?:paise|paisa|rupaye).{0,35}(?:chori|thagi)/i,
-    candidate: /cybercrime|cyber\s+crime|cyber\s+fraud|financial\s+fraud|cybercrime\.gov\.in|\b1930\b|\bi4c\b/i
+    candidate: /national\s+cyber\s+crime\s+reporting|cybercrime\.gov\.in|\b1930\b|\bi4c\b|online\s+financial\s+fraud|financial\s+cyber\s+fraud/i
+  },
+  {
+    question: ONLINE_FIR_QUESTION_RE,
+    candidate: /\b(?:online|e-?fir|portal|e-?filing)\b.{0,60}\b(?:fir|police|complaint)\b|\b(?:fir|police|complaint)\b.{0,60}\b(?:online|portal|e-?filing)\b/i
+  },
+  {
+    question: BUILDER_COMPLAINT_QUESTION_RE,
+    candidate: /\b(?:builder|real estate|property developer|housing project|RERA)\b/i
+  },
+  {
+    question: CONSUMER_ACT_QUESTION_RE,
+    candidate: /consumer_protection_act|consumer protection act|section\s+2\s*\(\s*6\s*\)/i
   },
   {
     question: /consumer|\b1915\b|\bnch\b|defective\s+product|product\s+defect|seller.{0,25}refund|refund.{0,25}(?:seller|product|purchase|order)|warrant(?:y|ies)|poor\s+service/i,
     candidate: /consumer|\bnch\b|\b1915\b|consumer\s+commission/i
+  },
+  {
+    question: /legal aid|free legal|legal services authorities?|lok adalat|विधिक सहायता|कानूनी सहायता|muft kanooni madad/i,
+    candidate: /legal aid|legal services authorities?|legal services authorities act|lok adalat|free legal services?/i
+  },
+  {
+    question: /fundamental rights?|constitutional rights?|article\s*(?:14|15|19|21a?|23|24|25|32|226)|मौलिक अधिकार|संवैधानिक अधिकार/i,
+    candidate: /fundamental rights?|constitutional rights?|article\s*(?:14|15|19|21a?|23|24|25|32|226)|मौलिक अधिकार|संवैधानिक अधिकार/i
+  },
+  {
+    question: /\b(?:bnss|bharatiya nagarik suraksha sanhita|cognizable offence|cognisable offence|fir|first information report|police refuse|police arrest|arrested by police|arrest rights)\b|पुलिस.{0,40}(?:शिकायत|गिरफ्तारी|एफआईआर)|प्राथमिकी/i,
+    candidate: /\bbnss\b|bharatiya nagarik suraksha sanhita|cognizable|cognisable|section\s+173|police.{0,50}(?:record|refus|arrest|information)|\bfir\b/i
+  },
+  {
+    question: /child protection|child safety|child abuse|pocso|juvenile justice|bachchon ki safety|bachon ki safety|बाल सुरक्षा|बच्चों की सुरक्षा|बाल शोषण/i,
+    candidate: /pocso|juvenile justice|child welfare|child helpline|child protection|बाल सुरक्षा|बाल संरक्षण/i
   },
   {
     question: /domestic\s+violence|gharelu\s+hinsa|pwdva|protection\s+order/i,
@@ -28,21 +60,69 @@ export function filterLegalChunksForQuestion(question, chunks) {
   const cybercrimeRule = LEGAL_QUERY_RELEVANCE[0];
   // Theft, unauthorized transactions, and financial fraud are cyber-reporting
   // intents even if the question also mentions a consumer grievance channel.
-  if (CYBERCRIME_PRIORITY_RE.test(question)) {
+  if (isCybercrimeReportingQuestion(question) || CYBERCRIME_PRIORITY_RE.test(question)) {
     return chunks.filter((chunk) =>
-      cybercrimeRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+      cybercrimeRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.source_url || ''}`)
+    );
+  }
+  if (ONLINE_FIR_QUESTION_RE.test(question)) {
+    const onlineFirRule = LEGAL_QUERY_RELEVANCE.find(({ question: pattern }) => pattern === ONLINE_FIR_QUESTION_RE);
+    return chunks.filter((chunk) =>
+      onlineFirRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+    );
+  }
+  if (BUILDER_COMPLAINT_QUESTION_RE.test(question)) {
+    const builderRule = LEGAL_QUERY_RELEVANCE.find(({ question: pattern }) => pattern === BUILDER_COMPLAINT_QUESTION_RE);
+    return chunks.filter((chunk) =>
+      builderRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+    );
+  }
+  if (CONSUMER_ACT_QUESTION_RE.test(question)) {
+    const consumerActRule = LEGAL_QUERY_RELEVANCE.find(({ question: pattern }) => pattern === CONSUMER_ACT_QUESTION_RE);
+    return chunks.filter((chunk) =>
+      consumerActRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
     );
   }
   if (/\b(?:compare|comparison|versus|vs\.?|difference between)\b|\b(?:constitution|constitutional|article\s*226|writ jurisdiction)\b/i.test(question)) {
     return chunks;
   }
   const rules = LEGAL_QUERY_RELEVANCE.filter(({ question: pattern }) => pattern.test(question));
-  // Leave explicitly cross-topic queries intact so relevant statutes are not suppressed.
-  if (rules.length !== 1) return chunks;
-  const [rule] = rules;
-  return chunks.filter((chunk) =>
-    rule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
-  );
+  if (rules.length === 0) return [];
+  // For cross-topic questions, retain the union of candidates relevant to at
+  // least one detected intent. Never treat an unrelated legal hit as support.
+  return chunks.filter((chunk) => {
+    const content = `${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`;
+    return rules.some((rule) => rule.candidate.test(content));
+  });
+}
+
+function filterServiceChunksForQuestion(question, chunks, serviceId) {
+  // These two sources have known gaps: the Character Certificate source has
+  // no supporting-document checklist or verification procedure, and the
+  // domicile authored chunks omit eligibility. Apply the narrow checks only
+  // to those document-level gaps; don't suppress other service knowledge.
+  if (serviceId !== 'up_character_certificate' && serviceId !== 'up_domicile_certificate') return chunks;
+  const has = /\b(?:documents?|document\s+list|supporting\s+documents?|paperwork|kagaz|dastavez)\b|कागज़|कागजात|दस्तावेज़/i.test(question);
+  if (serviceId === 'up_character_certificate' && has) {
+    return chunks.filter((chunk) =>
+      /required\s+documents?|document\s+(?:checklist|requirements?)|supporting\s+documents?|\bdocuments\b/i.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+    );
+  }
+
+  const eligibilityQuestion = /\b(?:eligib(?:le|ility)|who\s+(?:can|may)\s+apply|qualif(?:y|ies|ication))\b|पात्रता|कौन आवेदन कर सकता|kaun apply kar sakta|kaun eligible/i.test(question);
+  if (serviceId === 'up_domicile_certificate' && eligibilityQuestion) {
+    return chunks.filter((chunk) =>
+      /eligib(?:le|ility)|who\s+(?:can|may)\s+apply|qualif(?:y|ies|ication)|पात्रता|कौन आवेदन कर सकता/i.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+    );
+  }
+
+  const policeProcessQuestion = /\b(?:how|process|procedure|steps?)\b.{0,80}\bpolice\b.{0,30}\bverif(?:y|ication)\b|\bpolice\b.{0,30}\bverif(?:y|ication)\b.{0,80}\b(?:how|process|procedure|steps?)\b|\bverif(?:y|ication)\b.{0,30}\bkaise\b/i.test(question);
+  if (serviceId === 'up_character_certificate' && policeProcessQuestion) {
+    return chunks.filter((chunk) =>
+      /police.{0,80}(?:verification|verify).{0,80}(?:process|procedure|conducted|steps?|contact|visit)|(?:process|procedure|conducted|steps?).{0,80}police.{0,80}(?:verification|verify)/i.test(chunk.text || '')
+    );
+  }
+  return chunks;
 }
 
 function touchesUnknownField(question) {
@@ -133,7 +213,7 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   // If regex matched, filter by that service; otherwise candidate is all retrieved chunks
   const candidateChunks = legalQuestion
     ? filterLegalChunksForQuestion(question, chunks)
-    : regexService ? filterChunksByService(chunks, regexService) : chunks;
+    : regexService ? filterServiceChunksForQuestion(question, filterChunksByService(chunks, regexService), regexService) : chunks;
   const topScore = candidateChunks[0]?.score ?? 0;
 
   // Rule: use detectService(question) if it matches; otherwise use top chunk's service ONLY
@@ -155,6 +235,19 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
 
   if (filteredChunks.length === 0 || topScore < threshold) {
     const guardReason = candidateChunks.length === 0 ? 'no_chunks' : 'similarity_threshold';
+    console.info('[RAG] Decision', JSON.stringify({
+      domain: legalQuestion ? 'legal_rights' : 'citizen_service',
+      language: lang,
+      retrievalSource,
+      scoreMeaning: retrievalSource === 'local_fallback' ? 'lexical_overlap' : 'vector_similarity',
+      retrievedCount: chunks.length,
+      candidateCount: candidateChunks.length,
+      selectedCount: filteredChunks.length,
+      retrievalScore: topScore,
+      threshold,
+      guardReason,
+      sourceIds: []
+    }));
     // When the guard_reason is similarity_threshold or no_chunks and no service was detected by regex, suggested_service_id must be null.
     const finalSuggestedService = regexService || null;
     return {
@@ -186,13 +279,20 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   }
 
   let genResult = null;
+  let generationFallbackReason = null;
   const provider = aiConfig.generationProvider;
   const useGemini = provider !== 'groq' && Date.now() >= geminiQuotaCooldownUntil;
+  console.info('[AI] Generation invoked', JSON.stringify({
+    provider: useGemini ? 'gemini' : 'groq',
+    candidateCount: filteredChunks.length,
+    sourceIds: sources.map((source) => source.id)
+  }));
 
   if (!useGemini) {
     try {
       genResult = await generateWithGroq(question, lang, filteredChunks);
     } catch (groqErr) {
+      generationFallbackReason = 'groq_generation_failed';
       console.error('[AI] Groq generation failed; using grounded chunk fallback:', safeProviderError(groqErr));
       genResult = fallbackFromChunks(filteredChunks, lang);
     }
@@ -201,23 +301,41 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
       genResult = await generateWithGemini(question, lang, filteredChunks);
       geminiQuotaCooldownUntil = 0;
     } catch (geminiErr) {
+      generationFallbackReason = 'gemini_generation_failed';
       if (isQuotaError(geminiErr)) geminiQuotaCooldownUntil = Date.now() + GEMINI_QUOTA_COOLDOWN_MS;
       console.warn('[AI] Gemini unavailable, attempting Groq fallback:', safeProviderError(geminiErr));
       try {
         genResult = await generateWithGroq(question, lang, filteredChunks);
       } catch (groqErr) {
+        generationFallbackReason = 'all_generation_providers_failed';
         console.error('[AI] Both generation providers failed; using grounded chunk fallback:', safeProviderError(groqErr));
         genResult = fallbackFromChunks(filteredChunks, lang);
       }
     }
   }
 
+  console.info('[RAG] Decision', JSON.stringify({
+    domain: legalQuestion ? 'legal_rights' : 'citizen_service',
+    language: lang,
+    retrievalSource,
+    scoreMeaning: retrievalSource === 'local_fallback' ? 'lexical_overlap' : 'vector_similarity',
+    retrievedCount: chunks.length,
+    candidateCount: candidateChunks.length,
+    selectedCount: filteredChunks.length,
+    retrievalScore: topScore,
+    threshold,
+    guardReason: genResult.needs_human ? 'llm_needs_human' : 'in_scope',
+    generationStatus: genResult.generation_status,
+    generationFallbackReason,
+    sourceIds: sources.map((source) => source.id)
+  }));
   return {
     answer: genResult.answer,
     needs_human: genResult.needs_human, needsHuman: genResult.needs_human,
     generation_status: genResult.generation_status,
     confidence, retrieval_score: confidence,
     retrieval_source: retrievalSource, fallback_reason: fallbackReason,
+    generation_fallback_reason: generationFallbackReason,
     guard_reason: genResult.needs_human ? 'llm_needs_human' : 'in_scope',
     sources,
     suggested_service_id: suggestedServiceId, suggestedService: suggestedServiceId,
@@ -583,6 +701,8 @@ export async function postMessageService(userId, conversationId, { question, lan
     confidence: confidenceNum,
     needsHuman: needsHumanBool,
     sources: formattedSources,
-    suggestedService
+    suggestedService,
+    generationStatus: result.generation_status,
+    generationFallbackReason: result.generation_fallback_reason || null
   };
 }

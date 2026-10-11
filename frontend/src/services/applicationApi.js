@@ -18,4 +18,4 @@ export const updateApplication = (id, payload) => api.patch(`/applications/${id}
 export const updateDocument = (applicationId, documentId, payload) =>
   api.patch(`/applications/${applicationId}/documents/${documentId}`, payload).then(unwrap);
 export const deleteDocument = (applicationId, documentId) =>
-  api.delete(`/applications/${applicationId}/documents/${documentId}`).then(unwrap);
+  api.delete(`/applications/${applicationId}/documents/${documentId}`).then(unwrap);

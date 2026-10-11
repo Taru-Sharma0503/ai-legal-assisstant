@@ -18,6 +18,8 @@
 
 import { askService } from '../src/modules/ai/ai.service.js';
 import { detectService } from '../src/modules/ai/rag.service.js';
+import { LOW_CONF_MSG, UNKNOWN_FIELD_MSG } from '../src/modules/ai/knowledge.js';
+import { pathToFileURL } from 'node:url';
 
 const NO_LLM = process.argv.includes('--no-llm');
 
@@ -32,12 +34,12 @@ export const TEST_CASES = [
   { id: 'MARR_EN_DOC',     question: 'What documents are required for a marriage certificate in UP?',         lang: 'en',       expectedService: 'up_marriage_certificate',   expectedTopic: 'Required Documents', expectNeedsHuman: false },
   { id: 'EWS_EN_DOC',      question: 'What documents are required for an EWS certificate?',                   lang: 'en',       expectedService: 'up_ews_certificate',        expectedTopic: 'Certificate Format', expectNeedsHuman: false },
   { id: 'DIS_EN_DOC',      question: 'What documents are required for a disability certificate in UP?',        lang: 'en',       expectedService: 'up_disability_certificate', expectedTopic: ['Certification', 'Reassessment'], expectNeedsHuman: false },
-  { id: 'CHAR_EN_DOC',     question: 'What documents are needed for a character certificate?',                lang: 'en',       expectedService: 'up_character_certificate',  expectedTopic: ['Applicant Details', 'Police & Character Verification'], expectNeedsHuman: false },
+  { id: 'CHAR_EN_DOC',     question: 'What documents are needed for a character certificate?',                lang: 'en',       expectedService: 'up_character_certificate',  expectedTopic: ['Required Documents'], expectNeedsHuman: true, knownGap: true, knownGapNote: 'character source has no supporting-document checklist' },
 
   // ── IN-SCOPE: Hindi (Core) ───────────────────────────────────────────────
   { id: 'INC_HI_DOC',      question: 'उत्तर प्रदेश में आय प्रमाण पत्र के लिए कौन से दस्तावेज़ चाहिए?',    lang: 'hi',       expectedService: 'up_income_certificate',     expectedTopic: 'Required Documents', expectNeedsHuman: false },
   { id: 'CASTE_HI_FEE',    question: 'जाति प्रमाण पत्र बनवाने की फीस कितनी है?',                            lang: 'hi',       expectedService: 'up_caste_certificate',      expectedTopic: 'Overview & Fee',     expectNeedsHuman: false },
-  { id: 'DOM_HI_ELIG',     question: 'निवास प्रमाण पत्र के लिए कौन आवेदन कर सकता है?',                      lang: 'hi',       expectedService: 'up_domicile_certificate',   expectedTopic: 'Eligibility',        expectNeedsHuman: false, knownGap: true, knownGapNote: 'domicile JSON has no eligibility chunk' },
+  { id: 'DOM_HI_ELIG',     question: 'निवास प्रमाण पत्र के लिए कौन आवेदन कर सकता है?',                      lang: 'hi',       expectedService: 'up_domicile_certificate',   expectedTopic: 'Eligibility',        expectNeedsHuman: true, knownGap: true, knownGapNote: 'structured criteria have no specific verifiable source and are omitted from authored chunks' },
 
   // ── IN-SCOPE: Hinglish (Core) ────────────────────────────────────────────
   { id: 'INC_HL_DOC',      question: 'income certificate ke liye kya documents chahiye bhai?',                lang: 'hinglish', expectedService: 'up_income_certificate',     expectedTopic: 'Required Documents', expectNeedsHuman: false },
@@ -53,7 +55,7 @@ export const TEST_CASES = [
   { id: 'BIRTH_HI_LATE',   question: 'जन्म प्रमाण पत्र 21 दिन के बाद बनवाने पर कितना शुल्क लगता है?',         lang: 'hi',       expectedService: 'up_birth_certificate',      expectedTopic: 'Fees & Delayed',     expectNeedsHuman: false },
   { id: 'EWS_HI_ELIG',     question: 'उत्तर प्रदेश में ईडब्ल्यूएस प्रमाण पत्र के लिए पात्रता क्या है?',       lang: 'hi',       expectedService: 'up_ews_certificate',        expectedTopic: ['Eligibility', 'Certificate Format'], expectNeedsHuman: false },
   { id: 'DIS_HI_AUTH',     question: 'दिव्यांग प्रमाण पत्र जारी करने का अधिकार किसके पास है?',                lang: 'hi',       expectedService: 'up_disability_certificate', expectedTopic: 'Certification',    expectNeedsHuman: false },
-  { id: 'CHAR_HL_POLICE',  question: 'UP me character certificate ke liye police verification kaise hoga',     lang: 'hinglish', expectedService: 'up_character_certificate',  expectedTopic: ['Police', 'Certificate Overview'], expectNeedsHuman: false },
+  { id: 'CHAR_HL_POLICE',  question: 'UP me character certificate ke liye police verification kaise hoga',     lang: 'hinglish', expectedService: 'up_character_certificate',  expectedTopic: ['Police & Character Verification'], expectNeedsHuman: true, knownGap: true, knownGapNote: 'character source describes recorded police fields, not the verification procedure' },
   { id: 'DOM_HL_APPLY',    question: 'UP me niwas praman patra online kaise banwaye',                          lang: 'hinglish', expectedService: 'up_domicile_certificate',   expectedTopic: 'Application Procedure', expectNeedsHuman: false },
   { id: 'BIRTH_HL_OFFLINE',question: 'birth certificate offline kaise banega UP me',                          lang: 'hinglish', expectedService: 'up_birth_certificate',      expectedTopic: 'Offline Application',expectNeedsHuman: false },
   { id: 'INC_HI_RULES',    question: 'उत्तर प्रदेश में आय प्रमाण पत्र के नियम क्या हैं?',                     lang: 'hi',       expectedService: 'up_income_certificate',     expectedTopic: ['Rules & Eligibility', 'Required Documents'], expectNeedsHuman: false },
@@ -72,8 +74,8 @@ export const TEST_CASES = [
   { id: 'OOS_LAND_RECORD', question: 'How do I check UP Bhulekh land record online?',                         lang: 'en',       expectedService: null, expectNeedsHuman: true },
   { id: 'OOS_BIRTH_BIHAR', question: 'How to apply for a birth certificate in Bihar state?',                  lang: 'en',       expectedService: null, expectNeedsHuman: true },
   { id: 'OOS_RTI',         question: 'How can I file an online RTI application in Uttar Pradesh?',            lang: 'en',       expectedService: null, expectNeedsHuman: true },
-  { id: 'OOS_CONSUMER',    question: 'Where can I file a consumer complaint against a private builder?',      lang: 'en',       expectedService: null, expectNeedsHuman: true },
-  { id: 'OOS_FIR',         question: 'How to file an online FIR with Uttar Pradesh Police?',                  lang: 'en',       expectedService: null, expectNeedsHuman: true },
+  { id: 'OOS_CONSUMER',    question: 'Where can I file a consumer complaint against a private builder?',      lang: 'en',       expectedService: null, expectNeedsHuman: true, answerability: 'partial_evidence_escalation', expectedEvidenceTopics: ['National Consumer Helpline'], expectedEvidenceUrls: ['consumerhelpline.gov.in'], forbiddenAnswerPatterns: [/builder.{0,50}(?:must|should|has to).{0,30}(?:file|approach|sue)/i] },
+  { id: 'OOS_FIR',         question: 'How to file an online FIR with Uttar Pradesh Police?',                  lang: 'en',       expectedService: null, expectNeedsHuman: true, answerability: 'unsupported_no_evidence' },
   { id: 'OOS_UNPAID_WAGES',question: 'My employer has not paid my salary for 3 months, how to recover wages?',lang: 'en',       expectedService: null, expectNeedsHuman: true },
   { id: 'OOS_LANDLORD_DEP',question: 'What are my rights if my landlord keeps my security deposit?',          lang: 'en',       expectedService: null, expectNeedsHuman: true },
   { id: 'OOS_TAXES',       question: 'How do I file an income tax return ITR-1?',                             lang: 'en',       expectedService: null, expectNeedsHuman: true },
@@ -87,6 +89,64 @@ export const TEST_CASES = [
 ];
 
 // ── Evaluate Single Case ───────────────────────────────────────────────────
+export function evaluateCaseOutcome(tc, result, { noLlm = NO_LLM } = {}) {
+  const answerability = tc.answerability || (tc.knownGap || tc.expectNeedsHuman || tc.expectedService === null
+    ? 'unsupported_no_evidence'
+    : 'answerable');
+  const sources = Array.isArray(result.sources) ? result.sources : [];
+  const answer = result.answer || '';
+  const suggestedService = result.suggested_service_id ?? 'null';
+  const notes = [];
+  const failures = [];
+  const fail = (message) => failures.push(message);
+
+  if (!['answerable', 'partial_evidence_escalation', 'unsupported_no_evidence'].includes(answerability)) {
+    fail(`unknown answerability category: ${answerability}`);
+  }
+  if (suggestedService !== (tc.expectedService ?? 'null')) {
+    fail(`service/domain: got ${suggestedService}, want ${tc.expectedService ?? 'null'}`);
+  }
+
+  if (answerability === 'answerable') {
+    if (result.needs_human !== false) fail(`needs_human: got ${result.needs_human}, want false`);
+    if (tc.expectedTopic) {
+      const expectedTopics = Array.isArray(tc.expectedTopic) ? tc.expectedTopic : [tc.expectedTopic];
+      const relevant = sources.some((source) => expectedTopics.some((topic) =>
+        `${source.topic || ''} ${source.title || ''}`.toLowerCase().includes(topic.toLowerCase())
+      ));
+      if (!relevant) fail(`relevant source/topic missing; expected one of: ${expectedTopics.join(' | ')}`);
+    }
+  } else if (answerability === 'partial_evidence_escalation') {
+    // In retrieval-only mode, the LLM's escalation and wording cannot be tested.
+    // Evidence relevance is still required and is evaluated in both modes.
+    if (!noLlm && result.needs_human !== true) fail(`needs_human: got ${result.needs_human}, want true`);
+    const topicTerms = tc.expectedEvidenceTopics || [];
+    const urlTerms = tc.expectedEvidenceUrls || [];
+    const relevant = (source) => {
+      const text = `${source.topic || ''} ${source.title || ''} ${source.source_url || source.sourceUrl || ''}`.toLowerCase();
+      return topicTerms.some((term) => text.includes(term.toLowerCase())) ||
+        urlTerms.some((term) => text.includes(term.toLowerCase()));
+    };
+    if (!sources.some(relevant)) fail('partial evidence source missing or irrelevant');
+    if (sources.some((source) => !relevant(source))) fail('irrelevant source included with partial evidence');
+    if (!noLlm) {
+      for (const pattern of tc.forbiddenAnswerPatterns || []) {
+        if (pattern.test(answer)) fail(`unsupported answer claim matched ${pattern}`);
+      }
+    } else {
+      notes.push('retrieval-only mode: final answer limitation and human-review wording not evaluated');
+    }
+  } else if (answerability === 'unsupported_no_evidence') {
+    if (result.needs_human !== true) fail(`needs_human: got ${result.needs_human}, want true`);
+    if (sources.length > 0) fail(`unsupported question returned sources: ${sources.map((source) => source.topic || source.title || source.id).join(', ')}`);
+    const safeFallbacks = [LOW_CONF_MSG[tc.lang], UNKNOWN_FIELD_MSG[tc.lang], LOW_CONF_MSG.en, UNKNOWN_FIELD_MSG.en].filter(Boolean);
+    if (!safeFallbacks.includes(answer)) fail('unsupported question did not return a known no-evidence fallback');
+    if (tc.knownGap) notes.push(`known gap: ${tc.knownGapNote || 'no relevant authored evidence'}`);
+  }
+
+  return { answerability, pass: failures.length === 0, failures, notes };
+}
+
 async function evalCase(tc) {
   const start = Date.now();
 
@@ -109,56 +169,14 @@ async function evalCase(tc) {
   const answer = result.answer ?? '';
   const elapsedMs = Date.now() - start;
 
-  let pass = true;
-  const failures = [];
+  const outcome = evaluateCaseOutcome(tc, result, { noLlm: NO_LLM });
 
-  if (tc.expectedService !== null) {
-    // IN-SCOPE PASS criteria:
-    // 1. Service matches expected
-    if (suggestedService !== tc.expectedService) {
-      pass = false;
-      failures.push(`service: got ${suggestedService}, want ${tc.expectedService}`);
-    }
-
-    // 2. needs_human matches expected
-    if (needsHuman !== tc.expectNeedsHuman) {
-      pass = false;
-      failures.push(`needs_human: got ${needsHuman}, want ${tc.expectNeedsHuman}`);
-    }
-
-    // 3. Topic check (substring)
-    if (tc.expectedTopic && !tc.knownGap) {
-      const expectedList = Array.isArray(tc.expectedTopic) ? tc.expectedTopic : [tc.expectedTopic];
-      const matched = expectedList.some(exp => topTopic.toLowerCase().includes(exp.toLowerCase()));
-      if (!matched) {
-        pass = false;
-        failures.push(`topic: got "${topTopic}", want "${expectedList.join(' | ')}"`);
-      }
-    } else if (tc.knownGap) {
-      // Known gap: do not fail, log note
-      failures.push(`note: knownGap (${tc.knownGapNote || 'gap'})`);
-    }
-
-    // 4. Live LLM hallucination check for caste documents question
-    if (!NO_LLM && tc.id === 'CASTE_EN_DOC') {
-      const forbidden = ['Voter ID', 'Non-Creamy', 'Father / Family Member'];
-      const foundForbidden = forbidden.filter((f) => answer.toLowerCase().includes(f.toLowerCase()));
-      if (foundForbidden.length > 0) {
-        pass = false;
-        failures.push(`hallucination: [${foundForbidden.join(', ')}] found in answer`);
-      }
-    }
-  } else {
-    // OUT-OF-SCOPE PASS criteria:
-    // PASS means needs_human is true AND suggested_service_id is null; do not compare against regex service.
-    if (!needsHuman) {
-      pass = false;
-      failures.push(`needs_human: got ${needsHuman}, want true`);
-    }
-    if (result.suggested_service_id !== null) {
-      pass = false;
-      failures.push(`suggested_service_id: got ${result.suggested_service_id}, want null`);
-    }
+  // Existing caste-document hallucination check is retained for full LLM runs.
+  if (!NO_LLM && tc.id === 'CASTE_EN_DOC') {
+    const forbidden = ['Voter ID', 'Non-Creamy', 'Father / Family Member'];
+    const foundForbidden = forbidden.filter((term) => answer.toLowerCase().includes(term.toLowerCase()));
+    if (foundForbidden.length) outcome.failures.push(`hallucination: [${foundForbidden.join(', ')}] found in answer`);
+    outcome.pass = outcome.failures.length === 0;
   }
 
   return {
@@ -171,9 +189,11 @@ async function evalCase(tc) {
     guardReason,
     topScore: topScore.toFixed(3),
     topTopic,
+    answerability: outcome.answerability,
     needsHuman: needsHuman ?? '—',
-    pass,
-    failures,
+    pass: outcome.pass,
+    failures: outcome.failures,
+    notes: outcome.notes,
     elapsedMs,
     isInScope: tc.expectedService !== null,
     scoreNum: topScore
@@ -191,6 +211,7 @@ function formatRow(r) {
     r.retrievalSource.padEnd(14),
     String(r.topScore).padStart(6),
     r.topTopic.substring(0, 20).padEnd(20),
+    r.answerability.padEnd(28),
     String(r.needsHuman).padEnd(10),
     r.guardReason.padEnd(20),
     status + failMsg
@@ -223,6 +244,7 @@ async function main() {
     'Source'.padEnd(14),
     'Score'.padStart(6),
     'Top Topic'.padEnd(20),
+    'Answerability'.padEnd(28),
     'NeedsHuman'.padEnd(10),
     'Guard Reason'.padEnd(20),
     'Result'
@@ -300,7 +322,9 @@ async function main() {
   console.log('');
 }
 
-main().catch((err) => {
-  console.error('Evaluation script error:', err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error('Evaluation script error:', err);
+    process.exit(1);
+  });
+}

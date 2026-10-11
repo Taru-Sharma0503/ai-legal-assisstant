@@ -4,10 +4,19 @@ import { ApiError } from '../../utils/apiError.js';
 import { getFileUrl } from '../../utils/upload.js';
 import fs from 'fs';
 
+
 export const createApplication = async (req, res, next) => {
   try {
-    const { serviceId } = req.body;
-    const result = await applicationService.createApplication(req.user.id, { serviceId });
+    const { serviceId, applicantDetails } = req.body;
+
+    const result = await applicationService.createApplication(
+      req.user.id,
+      {
+        serviceId,
+        applicantDetails: applicantDetails || {}
+      }
+    );
+
     return sendSuccess(res, 201, result);
   } catch (error) {
     next(error);
@@ -31,7 +40,26 @@ export const getMyApplications = async (req, res, next) => {
 export const getApplicationDetails = async (req, res, next) => {
   try {
     const { applicationId } = req.params;
-    const result = await applicationService.getApplicationById(req.user.id, applicationId);
+    const result = await applicationService.getApplicationById(
+      req.user.id,
+      applicationId
+    );
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Submit an application after its required documents have been uploaded.
+export const submitApplication = async (req, res, next) => {
+  try {
+    const { applicationId } = req.params;
+
+    const result = await applicationService.submitApplication(
+      req.user.id,
+      applicationId
+    );
+
     return sendSuccess(res, 200, result);
   } catch (error) {
     next(error);
@@ -52,10 +80,15 @@ export const uploadDocument = async (req, res, next) => {
     }
 
     const fileUrl = getFileUrl(req, req.file.filename);
-    const result = await applicationService.uploadDocument(req.user.id, applicationId, {
-      documentName: documentName.trim(),
-      fileUrl
-    });
+
+    const result = await applicationService.uploadDocument(
+      req.user.id,
+      applicationId,
+      {
+        documentName: documentName.trim(),
+        fileUrl
+      }
+    );
 
     return sendSuccess(res, 200, result);
   } catch (error) {

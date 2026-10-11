@@ -1,9 +1,9 @@
+
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/db.js';
 import { logger } from './logger.js';
 import { INITIAL_SERVICES } from '../modules/services/service.service.js';
 import { INITIAL_OFFICES } from '../modules/offices/office.service.js';
-import { DEFAULT_KNOWLEDGE_SOURCES } from '../modules/ai/rag.service.js';
 
 export const seedDatabase = async () => {
   if (!prisma) {
@@ -54,7 +54,9 @@ export const seedDatabase = async () => {
       }
     });
 
-    logger.info(`[Seed] Users seeded: Citizen (${citizen.email}), Admin (${admin.email}), Agent (${agent.email})`);
+    logger.info(
+      `[Seed] Users seeded: Citizen (${citizen.email}), Admin (${admin.email}), Agent (${agent.email})`
+    );
 
     // 2. Seed Services and Documents
     for (const serviceData of INITIAL_SERVICES) {
@@ -101,7 +103,10 @@ export const seedDatabase = async () => {
         });
       }
     }
-    logger.info(`[Seed] Seeded ${INITIAL_SERVICES.length} services with documents`);
+
+    logger.info(
+      `[Seed] Seeded ${INITIAL_SERVICES.length} services with documents`
+    );
 
     // 3. Seed Offices
     for (const office of INITIAL_OFFICES) {
@@ -132,30 +137,8 @@ export const seedDatabase = async () => {
         }
       });
     }
-    logger.info(`[Seed] Seeded ${INITIAL_OFFICES.length} offices`);
 
-    // 4. Seed Knowledge Base for RAG
-    for (const kb of DEFAULT_KNOWLEDGE_SOURCES) {
-      await prisma.knowledgeBase.upsert({
-        where: { id: kb.id },
-        update: {
-          title: kb.title,
-          department: kb.department,
-          sourceUrl: kb.sourceUrl,
-          content: kb.content,
-          verified: true
-        },
-        create: {
-          id: kb.id,
-          title: kb.title,
-          department: kb.department,
-          sourceUrl: kb.sourceUrl,
-          content: kb.content,
-          verified: true
-        }
-      });
-    }
-    logger.info(`[Seed] Seeded ${DEFAULT_KNOWLEDGE_SOURCES.length} verified knowledge base articles`);
+    logger.info(`[Seed] Seeded ${INITIAL_OFFICES.length} offices`);
 
     logger.info('[Seed] Database seeding completed successfully.');
   } catch (error) {

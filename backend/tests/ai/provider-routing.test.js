@@ -228,6 +228,44 @@ describe('generation provider routing', () => {
     }
   });
 
+  it('uses grounded chunk fallback after provider timeouts without live API calls', async () => {
+    const originalProvider = process.env.LLM_PROVIDER;
+    const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.LLM_PROVIDER = 'gemini';
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    let geminiCalls = 0;
+    let groqCalls = 0;
+    const mocks = await installMocks({
+      gemini: { models: { generateContent: async () => {
+        geminiCalls += 1;
+        const error = new Error('request timed out');
+        error.code = 'ETIMEDOUT';
+        throw error;
+      } } },
+      groq: { chat: { completions: { create: async () => {
+        groqCalls += 1;
+        const error = new Error('provider timeout');
+        error.code = 'ETIMEDOUT';
+        throw error;
+      } } } }
+    });
+    try {
+      const result = await askIncomeCertificate();
+      assert.equal(geminiCalls, 1);
+      assert.equal(groqCalls, 1);
+      assert.equal(result.generation_status, 'fallback');
+      assert.equal(result.needs_human, false);
+      assert.match(result.answer, /Income Certificate requires an applicant photo/);
+      assert.equal(result.sources[0].source_url, 'https://edistrict.up.gov.in');
+    } finally {
+      mocks.reset();
+      if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = originalProvider;
+      if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
+      else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
+    }
+  });
+
   it('does not retry Gemini after a quota response during its cooldown', async () => {
     const originalProvider = process.env.LLM_PROVIDER;
     const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;

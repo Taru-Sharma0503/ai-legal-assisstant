@@ -597,4 +597,4 @@ export const deleteDocument = async (userId, applicationId, documentId) => {
     message: 'Document removed successfully',
     status: 'PENDING'
   };
-};
+};

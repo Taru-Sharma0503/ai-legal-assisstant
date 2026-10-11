@@ -421,4 +421,4 @@ export default function ApplicationDetails() {
       </div>
     </div>
   );
-}
+}
