@@ -104,6 +104,8 @@ export default function Assistant() {
             confidence: res.confidence,
             needsHuman: res.needsHuman,
             suggestedService: res.suggestedService,
+            generationStatus: res.generationStatus,
+            generationFallbackReason: res.generationFallbackReason,
           },
         },
       ]);

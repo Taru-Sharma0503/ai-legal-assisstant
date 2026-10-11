@@ -2,7 +2,7 @@ import { detectLanguage } from './language.js';
 import { UNKNOWN_FIELD_KEYWORDS, UNKNOWN_FIELD_MSG, LOW_CONF_MSG } from './knowledge.js';
 import { generateWithGemini } from './gemini.service.js';
 import { generateWithGroq } from './groq.service.js';
-import { retrieve, detectService, isLegalQuestion, isCybercrimeReportingQuestion, filterChunksByService, buildSources } from './rag.service.js';
+import { retrieve, detectService, detectServices, serviceName, isServiceComparison, isLegalQuestion, isCybercrimeReportingQuestion, filterChunksByService, buildSources } from './rag.service.js';
 import { aiConfig } from '../../config/ai.js';
 
 const ONLINE_FIR_QUESTION_RE = /\b(?:online|internet|e-?filing|e-?fir)\b.{0,50}\b(?:fir|first information report)\b|\b(?:fir|first information report)\b.{0,50}\b(?:online|internet|portal)\b/i;
@@ -171,7 +171,7 @@ function safeProviderError(error) {
     : String(error?.name || 'ProviderError').slice(0, 60);
 }
 
-export async function askService({ question, language, state = 'Uttar Pradesh', skipLlm = false }) {
+export async function askService({ question, retrievalQuestion = question, language, state = 'Uttar Pradesh', skipLlm = false }) {
   // Task C-1: treat 'auto', undefined, empty string as 'detect'; call detectLanguage
   const lang =
     !language || language === 'auto' ? (detectLanguage(question) || 'en') : language;
@@ -194,7 +194,11 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   }
 
   // Retrieve – returns { chunks, retrievalSource, fallbackReason }
-  const { chunks, retrievalSource, fallbackReason } = await retrieve(question, state);
+  // Keep follow-up context in the retrieval query, but use only the latest
+  // user message for intent classification and answer generation.
+  const comparison = isServiceComparison(question) ? detectServices(question) : [];
+  const isComparison = comparison.length > 1;
+  const { chunks, retrievalSource, fallbackReason } = await retrieve(retrievalQuestion, state);
   const legalQuestion = isLegalQuestion(question);
 
   // Two-tier threshold strategy:
@@ -204,7 +208,10 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   //     (max eval score = 0.74) are correctly rejected. Evaluation data:
   //       In-scope min: 0.70 (all regex-routed, threshold irrelevant)
   //       OOS max:      0.74 (no regex match, strict threshold needed)
-  const regexService = legalQuestion ? null : detectService(question);
+  // A short follow-up may omit the service name; its retrieval query carries
+  // the prior service reference for routing while generation still sees only
+  // the latest question.
+  const regexService = legalQuestion ? null : (detectService(question) || detectService(retrievalQuestion));
   const NON_REGEX_THRESHOLD = 0.76; // above highest observed OOS score (0.750 in local fallback, 0.740 in Qdrant)
   const threshold = regexService || legalQuestion
     ? (retrievalSource === 'qdrant' ? aiConfig.similarityThreshold : Math.min(aiConfig.similarityThreshold, 0.3))
@@ -213,7 +220,8 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   // If regex matched, filter by that service; otherwise candidate is all retrieved chunks
   const candidateChunks = legalQuestion
     ? filterLegalChunksForQuestion(question, chunks)
-    : regexService ? filterServiceChunksForQuestion(question, filterChunksByService(chunks, regexService), regexService) : chunks;
+    : isComparison ? chunks.filter((chunk) => chunk.score >= threshold)
+      : regexService ? filterServiceChunksForQuestion(question, filterChunksByService(chunks, regexService), regexService) : chunks;
   const topScore = candidateChunks[0]?.score ?? 0;
 
   // Rule: use detectService(question) if it matches; otherwise use top chunk's service ONLY
@@ -229,9 +237,14 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
 
   const filteredChunks = legalQuestion
     ? candidateChunks
-    : suggestedServiceId ? filterChunksByService(candidateChunks, suggestedServiceId) : [];
+    : isComparison ? candidateChunks
+      : suggestedServiceId ? filterChunksByService(candidateChunks, suggestedServiceId) : [];
   const confidence = Math.round(topScore * 100) / 100;
   const sources = buildSources(filteredChunks.length > 0 ? filteredChunks : candidateChunks);
+  const retrievedServices = new Set(filteredChunks.map((chunk) => chunk.service_id));
+  const missingComparisonServices = isComparison
+    ? comparison.filter((serviceId) => !retrievedServices.has(serviceId)).map((serviceId) => ({ service_id: serviceId, title: serviceName(serviceId) }))
+    : [];
 
   if (filteredChunks.length === 0 || topScore < threshold) {
     const guardReason = candidateChunks.length === 0 ? 'no_chunks' : 'similarity_threshold';
@@ -288,9 +301,13 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
     sourceIds: sources.map((source) => source.id)
   }));
 
+  const generationOptions = isComparison
+    ? { comparedServices: comparison.map((serviceId) => ({ service_id: serviceId, title: serviceName(serviceId) })), missingComparisonServices }
+    : undefined;
+
   if (!useGemini) {
     try {
-      genResult = await generateWithGroq(question, lang, filteredChunks);
+      genResult = await generateWithGroq(question, lang, filteredChunks, generationOptions);
     } catch (groqErr) {
       generationFallbackReason = 'groq_generation_failed';
       console.error('[AI] Groq generation failed; using grounded chunk fallback:', safeProviderError(groqErr));
@@ -298,14 +315,14 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
     }
   } else {
     try {
-      genResult = await generateWithGemini(question, lang, filteredChunks);
+      genResult = await generateWithGemini(question, lang, filteredChunks, generationOptions);
       geminiQuotaCooldownUntil = 0;
     } catch (geminiErr) {
       generationFallbackReason = 'gemini_generation_failed';
       if (isQuotaError(geminiErr)) geminiQuotaCooldownUntil = Date.now() + GEMINI_QUOTA_COOLDOWN_MS;
       console.warn('[AI] Gemini unavailable, attempting Groq fallback:', safeProviderError(geminiErr));
       try {
-        genResult = await generateWithGroq(question, lang, filteredChunks);
+        genResult = await generateWithGroq(question, lang, filteredChunks, generationOptions);
       } catch (groqErr) {
         generationFallbackReason = 'all_generation_providers_failed';
         console.error('[AI] Both generation providers failed; using grounded chunk fallback:', safeProviderError(groqErr));
@@ -605,16 +622,11 @@ export async function postMessageService(userId, conversationId, { question, lan
   }
 
   const langToUse = language || conv.language || 'en';
-  const historyForLlm = last6.map((m) => ({
-    role: m.sender === 'USER' ? 'user' : 'model',
-    content: m.content
-  }));
-
   const result = await askService({
-    question: retrievalText,
+    question,
+    retrievalQuestion: retrievalText,
     language: langToUse,
-    state: 'Uttar Pradesh',
-    conversationHistory: historyForLlm
+    state: 'Uttar Pradesh'
   });
 
   const suggestedService = await resolveSuggestedService(result.suggested_service_id);
@@ -623,7 +635,10 @@ export async function postMessageService(userId, conversationId, { question, lan
     id: s.id || s.source_id || s.source_ref || s.chunk_id || '',
     title: s.title || s.topic || '',
     sourceUrl: s.source_url || s.url || s.sourceUrl || '',
-    department: s.department || ''
+    department: s.department || '',
+    serviceId: s.service_id || '',
+    sourceType: s.source_type || '',
+    topic: s.topic || ''
   }));
 
   const aiMsgId = crypto.randomUUID();

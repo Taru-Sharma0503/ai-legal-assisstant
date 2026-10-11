@@ -48,7 +48,7 @@ describe('legal knowledge routing', () => {
       { question: 'I got scammed online how can I report it?', language: 'en' },
       { question: 'Where can I report online payment fraud in India?', language: 'en' },
       { question: 'Someone stole money from my UPI account. What should I do?', language: 'en' },
-      { question: 'I sent money to a scammer. How do I complain?', language: 'en' },
+      { question: 'I sent money to a scammer. How do I complain?', language: 'en', expectedScore: 0.56 },
       { question: 'How do I report cyber fraud?', language: 'en' },
       { question: 'Mere saath online scam ho gaya, complaint kaise karun?', language: 'hinglish' },
       { question: 'Mere UPI se paise kat gaye fraud mein, ab kya karun?', language: 'hinglish' },
@@ -72,10 +72,11 @@ describe('legal knowledge routing', () => {
     process.env.LLM_PROVIDER = 'gemini';
     rag._setQdrantClient({ query: async (collection, options) => {
       qdrantCalls.push({ collection, filter: options.filter });
+      const cybercrimeScore = qdrantCalls.length === 4 ? 0.56 : 0.68;
       return [
         { score: 0.93, payload: { chunk_id: 'nch', source_id: 'nch-source' } },
         { score: 0.91, payload: { chunk_id: 'pocso', source_id: 'pocso-source' } },
-        { score: 0.68, payload: { chunk_id: 'cyber-portal', source_id: 'cyber-source' } }
+        { score: cybercrimeScore, payload: { chunk_id: 'cyber-portal', source_id: 'cyber-source' } }
       ];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
@@ -97,7 +98,7 @@ describe('legal knowledge routing', () => {
     groq._setGroqClient(false);
     try {
       assert.equal(rag.isCybercrimeReportingQuestion('My new phone is defective and the seller refuses a refund.'), false);
-      for (const { question, language } of questions) {
+      for (const { question, language, expectedScore = 0.68 } of questions) {
         assert.equal(rag.isLegalQuestion(question), true, question);
         assert.equal(rag.isCybercrimeReportingQuestion(question), true, question);
         const result = await askService({ question, language });
@@ -107,7 +108,7 @@ describe('legal knowledge routing', () => {
         assert.equal(result.guard_reason, 'in_scope', question);
         assert.equal(result.retrieval_source, 'qdrant', question);
         assert.equal(result.fallback_reason, null, question);
-        assert.equal(result.confidence, 0.68, question);
+        assert.equal(result.confidence, expectedScore, question);
         assert.deepEqual(result.sources.map((source) => source.source_url), ['https://cybercrime.gov.in/'], question);
         assert.match(result.answer, /cybercrime\.gov\.in.*1930/i, question);
       }
@@ -973,6 +974,63 @@ describe('legal knowledge routing', () => {
       if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
       else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
     }
+  });
+});
+
+describe('focused generation instructions and provider behavior', () => {
+  it('sends question-specific instructions to both providers and preserves concise mocked answers', async () => {
+    const gemini = await import('../../src/modules/ai/gemini.service.js');
+    const groq = await import('../../src/modules/ai/groq.service.js');
+    const chunks = [{ topic: 'Income certificate', language: 'en', text: 'The income-certificate checklist includes Applicant photo, proof of income, and address proof. For login to the eDistrict portal, Aadhaar mobile OTP authentication (e-KYC) is used. The application is submitted online and reviewed by an official.' }];
+    const cases = [
+      { intent: 'confirmation', question: 'Is Aadhaar verification mentioned in the income-certificate process?', answer: 'Yes. The process mentions Aadhaar mobile OTP authentication (e-KYC) when logging in to the eDistrict portal.', excludes: ['Applicant photo', 'proof of income', 'address proof'] },
+      { intent: 'confirmation', question: '\u0915\u094d\u092f\u093e \u0906\u092f \u092a\u094d\u0930\u092e\u093e\u0923\u092a\u0924\u094d\u0930 \u092a\u094d\u0930\u0915\u094d\u0930\u093f\u092f\u093e \u092e\u0947\u0902 \u0906\u0927\u093e\u0930 \u0938\u0924\u094d\u092f\u093e\u092a\u0928 \u0915\u093e \u0909\u0932\u094d\u0932\u0947\u0916 \u0939\u0948?', answer: '\u0939\u093e\u0901, eDistrict \u092a\u094b\u0930\u094d\u091f\u0932 \u092e\u0947\u0902 \u0932\u0949\u0917\u093f\u0928 \u0915\u0947 \u0932\u093f\u090f \u0906\u0927\u093e\u0930 \u092e\u094b\u092c\u093e\u0907\u0932 OTP (e-KYC) \u0915\u093e \u0909\u092a\u092f\u094b\u0917 \u0939\u094b\u0924\u093e \u0939\u0948।', excludes: ['Applicant photo', 'proof of income', 'address proof'] },
+      { intent: 'documents', question: 'Which documents are listed for an income certificate?', answer: 'Required documents include applicant photo, proof of income, and address proof.', excludes: ['Aadhaar mobile OTP', 'submitted online'] },
+      { intent: 'process', question: 'How do I apply for an income certificate?', answer: '1. Log in to eDistrict using Aadhaar mobile OTP authentication (e-KYC). 2. Submit the application online for official review.', excludes: ['Applicant photo'] },
+      { intent: 'fee', question: 'What is the fee?', answer: 'The fee is not stated in the available information. Please contact a human officer to confirm it. NEEDS_HUMAN', excludes: ['Applicant photo', 'e-KYC'] }
+    ];
+    try {
+      for (const provider of ['gemini', 'groq']) {
+        for (const item of cases) {
+          let captured = '';
+          if (provider === 'gemini') {
+            gemini._setGeminiClient({ models: { generateContent: async ({ contents }) => { captured = contents[0]; return { text: item.answer }; } } });
+          } else {
+            groq._setGroqClient({ chat: { completions: { create: async ({ messages }) => {
+              captured = `${messages[0].content}\n${messages[1].content}`;
+              return { choices: [{ message: { content: item.answer } }] };
+            } } } });
+          }
+          const result = provider === 'gemini'
+            ? await gemini.generateWithGemini(item.question, item.language || 'en', chunks)
+            : await groq.generateWithGroq(item.question, item.language || 'en', chunks);
+          assert.match(captured, /Treat retrieved passages as evidence, not text to copy/i);
+          assert.match(captured, /Answer the specific question directly before any supporting detail/i);
+          assert.match(captured, new RegExp(`RESPONSE SHAPE: ${item.intent === 'confirmation' ? 'Give a direct yes/no answer first' : item.intent === 'documents' ? 'Return only the requested, verified documents' : item.intent === 'process' ? 'Give the necessary verified application steps' : 'State the requested fee or fact directly'}`, 'i'));
+          assert.ok(item.excludes.every((phrase) => !result.answer.toLowerCase().includes(phrase.toLowerCase())), `${provider}: unrelated context leaked for ${item.question}`);
+          assert.equal(result.needs_human, item.intent === 'fee');
+          if (item.intent === 'confirmation' && provider === 'gemini' && item.question.startsWith('Is Aadhaar')) assert.match(result.answer, /^Yes\b/);
+          if (item.intent === 'fee') assert.match(captured, /unknown and end your reply with the exact tag: NEEDS_HUMAN/i);
+        }
+      }
+    } finally {
+      gemini._setGeminiClient(null);
+      groq._setGroqClient(null);
+    }
+  });
+
+  it('keeps Hindi output requirements with the shared question-specific instructions', async () => {
+    const { buildUserMessage, classifyQuestionIntent } = await import('../../src/modules/ai/gemini.service.js');
+    const prompt = buildUserMessage('क्या आधार सत्यापन का उल्लेख है?', 'hi', [
+      { topic: 'आय प्रमाणपत्र', language: 'hi', text: 'आधार मोबाइल OTP प्रमाणीकरण (e-KYC) का उल्लेख है।' }
+    ]);
+    assert.match(prompt, /OUTPUT LANGUAGE: HINDI/i);
+    assert.match(prompt, /Answer the specific question directly before any supporting detail/i);
+    assert.match(prompt, /verified passages only as evidence/i);
+    assert.match(prompt, /RESPONSE SHAPE: Give a direct yes\/no answer first/i);
+    assert.equal(classifyQuestionIntent('\u0915\u094c\u0928 \u0938\u0947 \u0926\u0938\u094d\u0924\u093e\u0935\u0947\u091c \u091a\u093e\u0939\u093f\u090f?'), 'documents');
+    assert.equal(classifyQuestionIntent('\u0906\u0935\u0947\u0926\u0928 \u092a\u094d\u0930\u0915\u094d\u0930\u093f\u092f\u093e \u0915\u094d\u092f\u093e \u0939\u0948?'), 'process');
+    assert.equal(classifyQuestionIntent('\u0936\u0941\u0932\u094d\u0915 \u0915\u093f\u0924\u0928\u093e \u0939\u0948?'), 'fee');
   });
 });
 
