@@ -97,16 +97,6 @@ export const uploadDocument = async (req, res, next) => {
   }
 };
 
-export const submitApplication = async (req, res, next) => {
-  try {
-    const { applicationId } = req.params;
-    const result = await applicationService.submitApplication(req.user.id, applicationId);
-    return sendSuccess(res, 200, result);
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const withdrawApplication = async (req, res, next) => {
   try {
     const { applicationId } = req.params;
