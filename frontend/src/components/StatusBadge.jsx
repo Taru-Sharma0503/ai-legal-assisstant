@@ -14,7 +14,9 @@ const COLORS = {
   CLOSED: 'bg-slate-200 text-slate-700',
   UPLOADED: 'bg-blue-100 text-blue-700',
   VERIFIED: 'bg-green-100 text-green-700',
+  WITHDRAWN: 'bg-zinc-200 text-zinc-700',
 };
+
 
 export default function StatusBadge({ status }) {
   return (

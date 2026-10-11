@@ -3,7 +3,8 @@ import { prisma, isDbConnected } from '../../config/db.js';
 import { ApiError } from '../../utils/apiError.js';
 
 // In-memory fallback cases
-const mockEscalations = new Map();
+export const mockEscalations = new Map();
+
 
 export const createEscalation = async (userId, { conversationId, subject, description }) => {
   const caseId = crypto.randomUUID();
@@ -205,3 +206,45 @@ export const sendCaseMessage = async (userId, caseId, userRole, { message }) => 
     createdAt: createdMessage.createdAt instanceof Date ? createdMessage.createdAt.toISOString() : now.toISOString()
   };
 };
+
+export const withdrawCase = async (userId, caseId, userRole) => {
+  const escalation = await getCaseById(userId, caseId, userRole);
+
+  if (escalation.status === 'CLOSED') {
+    throw ApiError.badRequest('Case is already closed or withdrawn');
+  }
+
+  const now = new Date();
+  let updated = false;
+
+  if (prisma && isDbConnected) {
+    try {
+      await prisma.escalation.update({
+        where: { id: caseId },
+        data: {
+          status: 'CLOSED',
+          updatedAt: now
+        }
+      });
+      updated = true;
+    } catch (err) {
+      // fallback
+    }
+  }
+
+  if (!updated) {
+    const mock = mockEscalations.get(caseId);
+    if (mock) {
+      mock.status = 'CLOSED';
+      mock.updatedAt = now;
+    }
+  }
+
+  return {
+    id: caseId,
+    status: 'CLOSED',
+    updatedAt: now.toISOString(),
+    message: 'Case withdrawn successfully'
+  };
+};
+

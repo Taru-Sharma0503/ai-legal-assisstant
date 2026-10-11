@@ -233,6 +233,40 @@ const runTests = async () => {
     assert(uploadData.data.status === 'UPLOADED', 'POST /applications/:id/documents status UPLOADED');
     if (fs.existsSync(dummyFilePath)) fs.unlinkSync(dummyFilePath);
 
+    // 15a. Application Submission blocked if not all docs uploaded
+    const submitFailRes = await request(`/api/v1/applications/${applicationId}/submit`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${citizenToken}` }
+    });
+    assert(submitFailRes.status === 400, 'PATCH /applications/:id/submit fails 400 if documents missing');
+
+    // 15b. Rename document
+    const uploadedDocId = uploadData.data.id;
+    const renameDocRes = await request(`/api/v1/applications/${applicationId}/documents/${uploadedDocId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${citizenToken}` },
+      body: { name: 'Aadhaar Card Front' }
+    });
+    assert(renameDocRes.status === 200, 'PATCH /applications/:id/documents/:docId status 200');
+    assert(renameDocRes.data.data.name === 'Aadhaar Card Front', 'PATCH /applications/:id/documents/:docId name renamed');
+
+    // 15c. Delete document
+    const deleteDocRes = await request(`/api/v1/applications/${applicationId}/documents/${uploadedDocId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${citizenToken}` }
+    });
+    assert(deleteDocRes.status === 200, 'DELETE /applications/:id/documents/:docId status 200');
+    assert(deleteDocRes.data.data.status === 'PENDING', 'DELETE /applications/:id/documents/:docId resets to PENDING');
+
+    // 15d. Withdraw Application
+    const withdrawAppRes = await request(`/api/v1/applications/${applicationId}/withdraw`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${citizenToken}` }
+    });
+    assert(withdrawAppRes.status === 200, 'PATCH /applications/:id/withdraw status 200');
+    assert(withdrawAppRes.data.data.status === 'WITHDRAWN', 'PATCH /applications/:id/withdraw status WITHDRAWN');
+
+
     // 16. Create Human Escalation (Section 26)
     const createCaseRes = await request('/api/v1/escalations', {
       method: 'POST',
