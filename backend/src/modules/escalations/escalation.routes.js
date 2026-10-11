@@ -38,4 +38,11 @@ router.post(
   escalationController.sendCaseMessage
 );
 
+router.patch(
+  '/:caseId/withdraw',
+  validate({ params: caseIdParamSchema }),
+  escalationController.withdrawCase
+);
+
 export default router;
+

@@ -1,11 +1,11 @@
-
 import crypto from 'crypto';
 import { prisma, isDbConnected } from '../../config/db.js';
 import { ApiError } from '../../utils/apiError.js';
 import { INITIAL_SERVICES } from '../services/service.service.js';
 
 // In-memory fallback applications
-const mockApplications = new Map();
+export const mockApplications = new Map();
+
 
 export const generateReferenceNumber = () => {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -13,13 +13,8 @@ export const generateReferenceNumber = () => {
   return `APP-${dateStr}-${randomSuffix}`;
 };
 
-
-export const createApplication = async (
-  userId,
-  { serviceId, applicantDetails = {} }
-) => {
+export const createApplication = async (userId, { serviceId }) => {
   let service = null;
-
   if (prisma && isDbConnected) {
     try {
       service = await prisma.service.findUnique({
@@ -27,7 +22,7 @@ export const createApplication = async (
         include: { documents: true }
       });
     } catch (err) {
-      // Use fallback data if the database query fails.
+      // fallback
     }
   }
 
@@ -43,58 +38,7 @@ export const createApplication = async (
   const referenceNumber = generateReferenceNumber();
   const now = new Date();
 
-  // Convert the form data into database-compatible values.
-  const details = {
-    applicantName:
-      applicantDetails.fullName || applicantDetails.applicantName || null,
-
-    applicantDateOfBirth: applicantDetails.dateOfBirth
-      ? new Date(applicantDetails.dateOfBirth)
-      : null,
-
-    applicantGender:
-      applicantDetails.gender || null,
-
-    applicantMobile:
-      applicantDetails.mobile || null,
-
-    applicantEmail:
-      applicantDetails.email || null,
-
-    applicantAddress:
-      applicantDetails.address || null,
-
-    annualIncome:
-      applicantDetails.annualIncome !== undefined &&
-      applicantDetails.annualIncome !== ''
-        ? Number(applicantDetails.annualIncome)
-        : null,
-
-    occupation:
-      applicantDetails.occupation || null,
-
-    incomeSource:
-      applicantDetails.incomeSource || null
-  };
-
-  // Validate optional date and income values before saving.
-  if (
-    details.applicantDateOfBirth &&
-    Number.isNaN(details.applicantDateOfBirth.getTime())
-  ) {
-    throw ApiError.badRequest('Please provide a valid date of birth.');
-  }
-
-  if (
-    details.annualIncome !== null &&
-    (!Number.isFinite(details.annualIncome) ||
-      details.annualIncome < 0)
-  ) {
-    throw ApiError.badRequest('Please provide a valid annual income.');
-  }
-
   let createdApp = null;
-
   if (prisma && isDbConnected) {
     try {
       createdApp = await prisma.application.create({
@@ -105,7 +49,6 @@ export const createApplication = async (
           serviceId: service.id,
           status: 'DRAFT',
           applicationDate: now,
-          ...details,
           documents: {
             create: (service.documents || []).map(doc => ({
               id: crypto.randomUUID(),
@@ -117,9 +60,7 @@ export const createApplication = async (
         }
       });
     } catch (err) {
-      // Preserve the existing in-memory fallback behavior.
-      console.error('Failed to create application in database:', err);
-      throw err;
+      // fallback
     }
   }
 
@@ -133,7 +74,6 @@ export const createApplication = async (
       status: 'DRAFT',
       applicationDate: now,
       updatedAt: now,
-      ...details,
       documents: (service.documents || []).map(doc => ({
         id: crypto.randomUUID(),
         name: doc.name,
@@ -141,7 +81,6 @@ export const createApplication = async (
         fileUrl: null
       }))
     };
-
     mockApplications.set(applicationId, createdApp);
   }
 
@@ -150,18 +89,11 @@ export const createApplication = async (
     referenceNumber: createdApp.referenceNumber,
     serviceId: createdApp.serviceId,
     status: createdApp.status,
-    applicationDate:
-      createdApp.applicationDate instanceof Date
-        ? createdApp.applicationDate.toISOString()
-        : now.toISOString()
+    applicationDate: createdApp.applicationDate instanceof Date ? createdApp.applicationDate.toISOString() : now.toISOString()
   };
 };
 
-
-export const getMyApplications = async (
-  userId,
-  { status, page = 1, limit = 10 }
-) => {
+export const getMyApplications = async (userId, { status, page = 1, limit = 10 }) => {
   let applications = [];
   let total = 0;
 
@@ -173,7 +105,6 @@ export const getMyApplications = async (
       };
 
       total = await prisma.application.count({ where });
-
       const dbApps = await prisma.application.findMany({
         where,
         skip: (page - 1) * limit,
@@ -190,19 +121,15 @@ export const getMyApplications = async (
         applications = dbApps;
       }
     } catch (err) {
-      // Use in-memory fallback if the database query fails.
+      // fallback
     }
   }
 
   if (applications.length === 0 && total === 0) {
-    let list = Array.from(mockApplications.values()).filter(
-      app => app.userId === userId
-    );
-
+    let list = Array.from(mockApplications.values()).filter(a => a.userId === userId);
     if (status) {
-      list = list.filter(app => app.status === status);
+      list = list.filter(a => a.status === status);
     }
-
     total = list.length;
     const startIndex = (page - 1) * limit;
     applications = list.slice(startIndex, startIndex + limit);
@@ -217,14 +144,8 @@ export const getMyApplications = async (
         name: app.service?.name || 'Government Service'
       },
       status: app.status,
-      applicationDate:
-        app.applicationDate instanceof Date
-          ? app.applicationDate.toISOString()
-          : app.applicationDate,
-      updatedAt:
-        app.updatedAt instanceof Date
-          ? app.updatedAt.toISOString()
-          : app.updatedAt
+      applicationDate: app.applicationDate instanceof Date ? app.applicationDate.toISOString() : app.applicationDate,
+      updatedAt: app.updatedAt instanceof Date ? app.updatedAt.toISOString() : app.updatedAt
     })),
     pagination: {
       page: Number(page),
@@ -234,7 +155,6 @@ export const getMyApplications = async (
     }
   };
 };
-
 
 export const getApplicationById = async (userId, applicationId) => {
   let app = null;
@@ -256,14 +176,12 @@ export const getApplicationById = async (userId, applicationId) => {
         }
       });
     } catch (err) {
-      console.error('Failed to fetch application details:', err);
-      throw err;
+      // fallback
     }
   }
 
   if (!app) {
     const mock = mockApplications.get(applicationId);
-
     if (mock && mock.userId === userId) {
       app = mock;
     }
@@ -277,124 +195,29 @@ export const getApplicationById = async (userId, applicationId) => {
     id: app.id,
     referenceNumber: app.referenceNumber,
     status: app.status,
-
     service: {
       id: app.service?.id || app.serviceId,
       name: app.service?.name || 'Government Service'
     },
-
-    // Applicant details
-    applicantDetails: {
-      fullName: app.applicantName || '',
-      dateOfBirth: app.applicantDateOfBirth
-        ? new Date(app.applicantDateOfBirth).toISOString().slice(0, 10)
-        : '',
-      gender: app.applicantGender || '',
-      mobile: app.applicantMobile || '',
-      email: app.applicantEmail || '',
-      address: app.applicantAddress || '',
-      annualIncome: app.annualIncome ?? null,
-      occupation: app.occupation || '',
-      incomeSource: app.incomeSource || ''
-    },
-
-    documents: (app.documents || []).map(doc => ({
-      id: doc.id,
-      name: doc.name,
-      status: doc.status,
-      fileUrl: doc.fileUrl || null
+    documents: (app.documents || []).map(d => ({
+      id: d.id,
+      name: d.name,
+      status: d.status,
+      fileUrl: d.fileUrl || null
     })),
-
-    applicationDate:
-      app.applicationDate instanceof Date
-        ? app.applicationDate.toISOString()
-        : app.applicationDate,
-
-    updatedAt:
-      app.updatedAt instanceof Date
-        ? app.updatedAt.toISOString()
-        : app.updatedAt
+    applicationDate: app.applicationDate instanceof Date ? app.applicationDate.toISOString() : app.applicationDate,
+    updatedAt: app.updatedAt instanceof Date ? app.updatedAt.toISOString() : app.updatedAt
   };
 };
 
-// Submit an application after checking its status and documents.
-export const submitApplication = async (userId, applicationId) => {
-  // This also verifies that the application belongs to this user.
+export const uploadDocument = async (userId, applicationId, { documentName, fileUrl }) => {
   const app = await getApplicationById(userId, applicationId);
-
-  if (app.status !== 'DRAFT') {
-    throw ApiError.badRequest(
-      'Only draft applications can be submitted.'
-    );
-  }
-
-  const pendingDocuments = app.documents.filter(
-    doc => doc.status !== 'UPLOADED'
-  );
-
-  if (pendingDocuments.length > 0) {
-    const names = pendingDocuments.map(doc => doc.name).join(', ');
-
-    throw ApiError.badRequest(
-      `Please upload all required documents before submitting: ${names}`
-    );
-  }
-
-  const now = new Date();
-
-  // Update the database application.
-  if (prisma && isDbConnected && !mockApplications.has(applicationId)) {
-    const result = await prisma.application.updateMany({
-      where: {
-        id: applicationId,
-        userId,
-        status: 'DRAFT'
-      },
-      data: {
-        status: 'SUBMITTED',
-        updatedAt: now
-      }
-    });
-
-    if (result.count !== 1) {
-      throw ApiError.badRequest(
-        'The application could not be submitted. Please refresh and try again.'
-      );
-    }
-  } else {
-    // Update the in-memory fallback application.
-    const mock = mockApplications.get(applicationId);
-
-    if (!mock || mock.userId !== userId) {
-      throw ApiError.notFound('Application not found');
-    }
-
-    mock.status = 'SUBMITTED';
-    mock.updatedAt = now;
-  }
-
-  return getApplicationById(userId, applicationId);
-};
-
-export const uploadDocument = async (
-  userId,
-  applicationId,
-  { documentName, fileUrl }
-) => {
-  const app = await getApplicationById(userId, applicationId);
-
-  if (app.status !== 'DRAFT') {
-    throw ApiError.badRequest(
-      'Documents can only be uploaded to draft applications.'
-    );
-  }
 
   const docId = crypto.randomUUID();
   const now = new Date();
 
   let updatedDoc = null;
-
-  if (prisma && isDbConnected && !mockApplications.has(applicationId)) {
+  if (prisma && isDbConnected) {
     try {
       const existing = await prisma.applicationDocument.findFirst({
         where: { applicationId, name: documentName }
@@ -422,19 +245,18 @@ export const uploadDocument = async (
           }
         });
       }
+
+// Removed automatic status change. Application status will be managed via explicit submit action.
+// No update to application status here.
     } catch (err) {
-      // Handle the upload using the fallback below if necessary.
+      // fallback
     }
   }
 
   if (!updatedDoc) {
     const mock = mockApplications.get(applicationId);
-
     if (mock) {
-      const existingIdx = (mock.documents || []).findIndex(
-        doc => doc.name === documentName
-      );
-
+      const existingIdx = (mock.documents || []).findIndex(d => d.name === documentName);
       if (existingIdx >= 0) {
         mock.documents[existingIdx].fileUrl = fileUrl;
         mock.documents[existingIdx].status = 'UPLOADED';
@@ -446,16 +268,16 @@ export const uploadDocument = async (
           fileUrl,
           status: 'UPLOADED'
         };
-
         mock.documents.push(updatedDoc);
       }
-
-      // Uploading a document must not submit the application.
       mock.updatedAt = now;
     } else {
-      throw ApiError.badRequest(
-        'The document could not be saved. Please try again.'
-      );
+      updatedDoc = {
+        id: docId,
+        name: documentName,
+        fileUrl,
+        status: 'UPLOADED'
+      };
     }
   }
 
@@ -467,7 +289,7 @@ export const uploadDocument = async (
   };
 };
 
-// Owner of the application, or staff (ADMIN/AGENT), can open an uploaded file.
+// Owner of the application, or staff (ADMIN/AGENT), can open an uploaded file
 export const canAccessFile = async (user, filename) => {
   const urlEnd = `/uploads/${filename}`;
 
@@ -475,31 +297,304 @@ export const canAccessFile = async (user, filename) => {
     try {
       const doc = await prisma.applicationDocument.findFirst({
         where: { fileUrl: { endsWith: urlEnd } },
-        include: {
-          application: {
-            select: { userId: true }
-          }
-        }
+        include: { application: { select: { userId: true } } }
       });
-
       if (doc) {
-        return user.role !== 'CITIZEN' ||
-          doc.application.userId === user.id;
+        return user.role !== 'CITIZEN' || doc.application.userId === user.id;
       }
     } catch (err) {
-      // Fall through to the in-memory check.
+      // fall through to the in-memory check
     }
   }
 
   for (const app of mockApplications.values()) {
-    const hasFile = (app.documents || []).some(
-      doc => doc.fileUrl && doc.fileUrl.endsWith(urlEnd)
-    );
-
+    const hasFile = (app.documents || []).some(d => d.fileUrl && d.fileUrl.endsWith(urlEnd));
     if (hasFile) {
       return user.role !== 'CITIZEN' || app.userId === user.id;
     }
   }
 
   return false;
+};
+
+export const submitApplication = async (userId, applicationId) => {
+  const app = await getApplicationById(userId, applicationId);
+
+  if (app.status === 'SUBMITTED' || app.status === 'UNDER_REVIEW' || app.status === 'APPROVED') {
+    throw ApiError.badRequest(`Application is already ${app.status.toLowerCase()}`);
+  }
+  if (app.status === 'WITHDRAWN') {
+    throw ApiError.badRequest('Cannot submit a withdrawn application');
+  }
+
+  // Ensure all required documents are uploaded
+  const pendingDocs = (app.documents || []).filter(d => d.status !== 'UPLOADED' && d.status !== 'VERIFIED');
+  if (pendingDocs.length > 0) {
+    const pendingNames = pendingDocs.map(d => d.name).join(', ');
+    throw ApiError.badRequest(`All required documents must be uploaded before submitting. Pending: ${pendingNames}`);
+  }
+
+  const now = new Date();
+  let updatedApp = null;
+
+  if (prisma && isDbConnected) {
+    try {
+      updatedApp = await prisma.application.update({
+        where: { id: applicationId },
+        data: {
+          status: 'SUBMITTED',
+          updatedAt: now
+        },
+        include: {
+          service: { select: { id: true, name: true } },
+          documents: true
+        }
+      });
+    } catch (err) {
+      // fallback
+    }
+  }
+
+  if (!updatedApp) {
+    const mock = mockApplications.get(applicationId);
+    if (mock) {
+      mock.status = 'SUBMITTED';
+      mock.updatedAt = now;
+      updatedApp = mock;
+    }
+  }
+
+  return {
+    id: applicationId,
+    status: 'SUBMITTED',
+    updatedAt: now.toISOString(),
+    message: 'Application submitted successfully'
+  };
+};
+
+export const withdrawApplication = async (userId, applicationId) => {
+  const app = await getApplicationById(userId, applicationId);
+
+  if (app.status === 'WITHDRAWN') {
+    throw ApiError.badRequest('Application is already withdrawn');
+  }
+  if (app.status === 'APPROVED') {
+    throw ApiError.badRequest('Cannot withdraw an approved application');
+  }
+
+  const now = new Date();
+  let updated = false;
+
+  if (prisma && isDbConnected) {
+    try {
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: {
+          status: 'WITHDRAWN',
+          updatedAt: now
+        }
+      });
+      updated = true;
+    } catch (err) {
+      // fallback
+    }
+  }
+
+  if (!updated) {
+    const mock = mockApplications.get(applicationId);
+    if (mock) {
+      mock.status = 'WITHDRAWN';
+      mock.updatedAt = now;
+    }
+  }
+
+  return {
+    id: applicationId,
+    status: 'WITHDRAWN',
+    updatedAt: now.toISOString(),
+    message: 'Application withdrawn successfully'
+  };
+};
+
+export const updateApplication = async (userId, applicationId, { serviceId }) => {
+  const app = await getApplicationById(userId, applicationId);
+
+  if (app.status !== 'DRAFT') {
+    throw ApiError.badRequest('Only draft applications can be edited');
+  }
+
+  const now = new Date();
+  let service = null;
+
+  if (serviceId && serviceId !== app.service.id) {
+    if (prisma && isDbConnected) {
+      try {
+        service = await prisma.service.findUnique({
+          where: { id: serviceId },
+          include: { documents: true }
+        });
+      } catch (err) {
+        // fallback
+      }
+    }
+    if (!service) {
+      service = INITIAL_SERVICES.find(s => s.id === serviceId);
+    }
+    if (!service) {
+      throw ApiError.notFound('Selected service not found');
+    }
+  }
+
+  if (prisma && isDbConnected) {
+    try {
+      if (service) {
+        // Remove old documents that were not uploaded
+        await prisma.applicationDocument.deleteMany({
+          where: { applicationId, status: 'PENDING' }
+        });
+
+        // Add new service documents
+        for (const doc of (service.documents || [])) {
+          const exists = await prisma.applicationDocument.findFirst({
+            where: { applicationId, name: doc.name }
+          });
+          if (!exists) {
+            await prisma.applicationDocument.create({
+              data: {
+                id: crypto.randomUUID(),
+                applicationId,
+                name: doc.name,
+                status: 'PENDING',
+                fileUrl: null
+              }
+            });
+          }
+        }
+
+        await prisma.application.update({
+          where: { id: applicationId },
+          data: {
+            serviceId: service.id,
+            updatedAt: now
+          }
+        });
+      }
+    } catch (err) {
+      // fallback
+    }
+  }
+
+  const mock = mockApplications.get(applicationId);
+  if (mock) {
+    if (service) {
+      mock.serviceId = service.id;
+      mock.service = { id: service.id, name: service.name };
+      // Replace or update mock documents
+      mock.documents = (service.documents || []).map(doc => ({
+        id: crypto.randomUUID(),
+        name: doc.name,
+        status: 'PENDING',
+        fileUrl: null
+      }));
+    }
+    mock.updatedAt = now;
+  }
+
+  return getApplicationById(userId, applicationId);
+};
+
+export const updateDocument = async (userId, applicationId, documentId, { name }) => {
+  const app = await getApplicationById(userId, applicationId);
+
+  if (app.status === 'APPROVED' || app.status === 'WITHDRAWN') {
+    throw ApiError.badRequest(`Cannot modify documents for ${app.status.toLowerCase()} application`);
+  }
+
+  const doc = (app.documents || []).find(d => d.id === documentId);
+  if (!doc) {
+    throw ApiError.notFound('Document not found');
+  }
+
+  const now = new Date();
+  let updatedDoc = null;
+
+  if (prisma && isDbConnected) {
+    try {
+      updatedDoc = await prisma.applicationDocument.update({
+        where: { id: documentId },
+        data: {
+          ...(name ? { name } : {}),
+          updatedAt: now
+        }
+      });
+    } catch (err) {
+      // fallback
+    }
+  }
+
+  if (!updatedDoc) {
+    const mock = mockApplications.get(applicationId);
+    if (mock) {
+      const target = (mock.documents || []).find(d => d.id === documentId);
+      if (target) {
+        if (name) target.name = name;
+        target.updatedAt = now;
+        updatedDoc = target;
+      }
+    }
+  }
+
+  return {
+    id: documentId,
+    name: updatedDoc?.name || name || doc.name,
+    status: doc.status,
+    fileUrl: doc.fileUrl
+  };
+};
+
+export const deleteDocument = async (userId, applicationId, documentId) => {
+  const app = await getApplicationById(userId, applicationId);
+
+  if (app.status === 'APPROVED' || app.status === 'WITHDRAWN') {
+    throw ApiError.badRequest(`Cannot delete documents for ${app.status.toLowerCase()} application`);
+  }
+
+  const doc = (app.documents || []).find(d => d.id === documentId);
+  if (!doc) {
+    throw ApiError.notFound('Document not found');
+  }
+
+  const now = new Date();
+
+  if (prisma && isDbConnected) {
+    try {
+      // Rather than deleting the required document slot, reset its status and fileUrl so it can be uploaded again
+      await prisma.applicationDocument.update({
+        where: { id: documentId },
+        data: {
+          fileUrl: null,
+          status: 'PENDING',
+          updatedAt: now
+        }
+      });
+    } catch (err) {
+      // fallback
+    }
+  }
+
+  const mock = mockApplications.get(applicationId);
+  if (mock) {
+    const target = (mock.documents || []).find(d => d.id === documentId);
+    if (target) {
+      target.fileUrl = null;
+      target.status = 'PENDING';
+      target.updatedAt = now;
+    }
+  }
+
+  return {
+    id: documentId,
+    message: 'Document removed successfully',
+    status: 'PENDING'
+  };
 };

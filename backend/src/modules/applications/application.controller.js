@@ -96,3 +96,54 @@ export const uploadDocument = async (req, res, next) => {
     next(error);
   }
 };
+
+export const submitApplication = async (req, res, next) => {
+  try {
+    const { applicationId } = req.params;
+    const result = await applicationService.submitApplication(req.user.id, applicationId);
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const withdrawApplication = async (req, res, next) => {
+  try {
+    const { applicationId } = req.params;
+    const result = await applicationService.withdrawApplication(req.user.id, applicationId);
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateApplication = async (req, res, next) => {
+  try {
+    const { applicationId } = req.params;
+    const result = await applicationService.updateApplication(req.user.id, applicationId, req.body);
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateDocument = async (req, res, next) => {
+  try {
+    const { applicationId, documentId } = req.params;
+    const result = await applicationService.updateDocument(req.user.id, applicationId, documentId, req.body);
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteDocument = async (req, res, next) => {
+  try {
+    const { applicationId, documentId } = req.params;
+    const result = await applicationService.deleteDocument(req.user.id, applicationId, documentId);
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+

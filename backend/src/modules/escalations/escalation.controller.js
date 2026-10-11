@@ -44,3 +44,14 @@ export const sendCaseMessage = async (req, res, next) => {
     next(error);
   }
 };
+
+export const withdrawCase = async (req, res, next) => {
+  try {
+    const { caseId } = req.params;
+    const result = await escalationService.withdrawCase(req.user.id, caseId, req.user.role);
+    return sendSuccess(res, 200, result);
+  } catch (error) {
+    next(error);
+  }
+};
+

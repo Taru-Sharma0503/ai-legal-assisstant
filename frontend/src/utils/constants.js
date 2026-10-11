@@ -13,7 +13,9 @@ export const APPLICATION_STATUSES = [
   'UNDER_REVIEW',
   'APPROVED',
   'REJECTED',
+  'WITHDRAWN',
 ];
+
 
 export const CASE_STATUSES = ['PENDING', 'IN_REVIEW', 'RESPONDED', 'RESOLVED', 'CLOSED'];
 

@@ -7,7 +7,10 @@ import { upload } from '../../utils/upload.js';
 import {
   createApplicationSchema,
   applicationQuerySchema,
-  applicationIdParamSchema
+  applicationIdParamSchema,
+  applicationDocParamsSchema,
+  updateApplicationSchema,
+  updateDocumentSchema
 } from './application.schema.js';
 
 const router = Router();
@@ -40,6 +43,15 @@ router.get(
   applicationController.getApplicationDetails
 );
 
+router.patch(
+  '/:applicationId',
+  validate({
+    params: applicationIdParamSchema,
+    body: updateApplicationSchema
+  }),
+  applicationController.updateApplication
+);
+
 router.post(
   '/:applicationId/documents',
   validate({ params: applicationIdParamSchema }),
@@ -47,4 +59,32 @@ router.post(
   applicationController.uploadDocument
 );
 
+router.patch(
+  '/:applicationId/submit',
+  validate({ params: applicationIdParamSchema }),
+  applicationController.submitApplication
+);
+
+router.patch(
+  '/:applicationId/withdraw',
+  validate({ params: applicationIdParamSchema }),
+  applicationController.withdrawApplication
+);
+
+router.patch(
+  '/:applicationId/documents/:documentId',
+  validate({
+    params: applicationDocParamsSchema,
+    body: updateDocumentSchema
+  }),
+  applicationController.updateDocument
+);
+
+router.delete(
+  '/:applicationId/documents/:documentId',
+  validate({ params: applicationDocParamsSchema }),
+  applicationController.deleteDocument
+);
+
 export default router;
+

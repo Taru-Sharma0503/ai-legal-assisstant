@@ -4,3 +4,4 @@ export const createEscalation = (payload) => api.post('/escalations', payload).t
 export const getEscalations = () => api.get('/escalations').then(unwrap);
 export const getEscalation = (id) => api.get(`/escalations/${id}`).then(unwrap);
 export const sendCaseMessage = (id, message) => api.post(`/escalations/${id}/messages`, { message }).then(unwrap);
+export const withdrawCase = (id) => api.patch(`/escalations/${id}/withdraw`).then(unwrap);
