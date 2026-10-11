@@ -39,6 +39,95 @@ describe('legal knowledge routing', () => {
     assert.equal(isLegalQuestion('What is the helpline number for a bus timetable?'), false);
   });
 
+  it('retrieves verified cybercrime evidence and calls the LLM for informal English, Hindi and Hinglish paraphrases', async () => {
+    const rag = await import('../../src/modules/ai/rag.service.js');
+    const gemini = await import('../../src/modules/ai/gemini.service.js');
+    const groq = await import('../../src/modules/ai/groq.service.js');
+    const { askService } = await import('../../src/modules/ai/ai.service.js');
+    const questions = [
+      { question: 'I got scammed online how can I report it?', language: 'en' },
+      { question: 'Where can I report online payment fraud in India?', language: 'en' },
+      { question: 'Someone stole money from my UPI account. What should I do?', language: 'en' },
+      { question: 'I sent money to a scammer. How do I complain?', language: 'en' },
+      { question: 'How do I report cyber fraud?', language: 'en' },
+      { question: 'Mere saath online scam ho gaya, complaint kaise karun?', language: 'hinglish' },
+      { question: 'Mere UPI se paise kat gaye fraud mein, ab kya karun?', language: 'hinglish' },
+      { question: 'Online payment fraud ki complaint kahan kar sakta hoon?', language: 'hinglish' },
+      { question: '\u092e\u0947\u0930\u0947 \u0938\u093e\u0925 \u0911\u0928\u0932\u093e\u0907\u0928 \u0927\u094b\u0916\u093e\u0927\u0921\u093c\u0940 \u0939\u0941\u0908 \u0939\u0948, \u0936\u093f\u0915\u093e\u092f\u0924 \u0915\u0939\u093e\u0901 \u0915\u0930\u0942\u0901?', language: 'hi' }
+    ];
+    const rows = [
+      { id: 'nch', sourceId: 'nch-source', text: 'The National Consumer Helpline is a pre-litigation grievance channel for consumer complaints; it is not the National Cyber Crime Reporting Portal.', section: 'National Consumer Helpline', source: { id: 'nch-source', title: 'National Consumer Helpline', sourceUrl: 'https://consumerhelpline.gov.in/public/about', verified: true } },
+      { id: 'pocso', sourceId: 'pocso-source', text: 'POCSO section 19 concerns reporting suspected sexual offences against children.', section: 'POCSO reporting', source: { id: 'pocso-source', title: 'POCSO reporting', sourceUrl: 'https://www.indiacode.nic.in/', verified: true } },
+      { id: 'cyber-portal', sourceId: 'cyber-source', text: 'The National Cyber Crime Reporting Portal at cybercrime.gov.in provides an online channel for cybercrime complaints and directs people affected by online financial fraud to report promptly online or call 1930.', section: 'Cybercrime reporting portal', source: { id: 'cyber-source', title: 'National Cyber Crime Reporting Portal', sourceUrl: 'https://cybercrime.gov.in/', verified: true } }
+    ].map((row) => ({ ...row, language: 'en', region: 'Uttar Pradesh', verified: true }));
+    const qdrantCalls = [];
+    const hydratedIds = [];
+    const prompts = [];
+    const answers = [];
+    const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    const originalThreshold = process.env.SIMILARITY_THRESHOLD;
+    const originalProvider = process.env.LLM_PROVIDER;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    process.env.SIMILARITY_THRESHOLD = '0.30';
+    process.env.LLM_PROVIDER = 'gemini';
+    rag._setQdrantClient({ query: async (collection, options) => {
+      qdrantCalls.push({ collection, filter: options.filter });
+      return [
+        { score: 0.93, payload: { chunk_id: 'nch', source_id: 'nch-source' } },
+        { score: 0.91, payload: { chunk_id: 'pocso', source_id: 'pocso-source' } },
+        { score: 0.68, payload: { chunk_id: 'cyber-portal', source_id: 'cyber-source' } }
+      ];
+    } });
+    rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
+    rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => {
+      const records = rows.filter((row) => where.id.in.includes(row.id));
+      hydratedIds.push(records.map((row) => row.id));
+      return records;
+    } } });
+    gemini._setGeminiClient({ models: { generateContent: async ({ contents }) => {
+      prompts.push(contents[0]);
+      const answer = contents[0].includes('OUTPUT LANGUAGE: HINDI')
+        ? '\u0911\u0928\u0932\u093e\u0907\u0928 \u0935\u093f\u0924\u094d\u0924\u0940\u092f \u0927\u094b\u0916\u093e\u0927\u0921\u093c\u0940 \u0915\u0940 \u0930\u093f\u092a\u094b\u0930\u094d\u091f cybercrime.gov.in \u092a\u0930 \u0915\u0930\u0947\u0902 \u092f\u093e 1930 \u092a\u0930 \u0915\u0949\u0932 \u0915\u0930\u0947\u0902.'
+        : contents[0].includes('OUTPUT LANGUAGE: HINGLISH')
+          ? 'Online financial fraud ko cybercrime.gov.in par report karein ya 1930 par call karein.'
+          : 'For online financial fraud, report promptly through cybercrime.gov.in or call 1930.';
+      answers.push(answer);
+      return { text: answer };
+    } } });
+    groq._setGroqClient(false);
+    try {
+      assert.equal(rag.isCybercrimeReportingQuestion('My new phone is defective and the seller refuses a refund.'), false);
+      for (const { question, language } of questions) {
+        assert.equal(rag.isLegalQuestion(question), true, question);
+        assert.equal(rag.isCybercrimeReportingQuestion(question), true, question);
+        const result = await askService({ question, language });
+        assert.equal(result.generation_status, 'gemini', question);
+        assert.equal(result.language_used, language, question);
+        assert.equal(result.needs_human, false, question);
+        assert.equal(result.guard_reason, 'in_scope', question);
+        assert.equal(result.retrieval_source, 'qdrant', question);
+        assert.equal(result.fallback_reason, null, question);
+        assert.equal(result.confidence, 0.68, question);
+        assert.deepEqual(result.sources.map((source) => source.source_url), ['https://cybercrime.gov.in/'], question);
+        assert.match(result.answer, /cybercrime\.gov\.in.*1930/i, question);
+      }
+      assert.deepEqual(qdrantCalls.map((call) => call.collection), questions.map(() => 'legal_rights_chunks'));
+      assert.ok(qdrantCalls.every((call) => call.filter.must.some((item) => item.key === 'knowledge_domain' && item.match.value === 'legal_rights')));
+      assert.ok(qdrantCalls.every((call) => call.filter.must.some((item) => item.key === 'verified' && item.match.value === true)));
+      assert.ok(hydratedIds.every((ids) => ids.length === 3 && ids.includes('cyber-portal')));
+      assert.equal(prompts.length, questions.length, 'configured LLM is called for each supported paraphrase');
+      assert.equal(answers.length, questions.length);
+      assert.ok(prompts.every((prompt) => prompt.includes('National Cyber Crime Reporting Portal')));
+      assert.ok(prompts.every((prompt) => !prompt.includes('POCSO section 19')));
+    } finally {
+      rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
+      gemini._setGeminiClient(null); groq._setGroqClient(null);
+      if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
+      if (originalThreshold === undefined) delete process.env.SIMILARITY_THRESHOLD; else process.env.SIMILARITY_THRESHOLD = originalThreshold;
+      if (originalProvider === undefined) delete process.env.LLM_PROVIDER; else process.env.LLM_PROVIDER = originalProvider;
+    }
+  });
+
   it('keeps newly approved official legal sources schema-valid and human-reviewed', () => {
     const legalDir = path.resolve(process.cwd(), 'data/legal');
     const files = [
@@ -874,8 +963,7 @@ describe('legal knowledge routing', () => {
       assert.ok(legal.chunks.every((chunk) => chunk.verified === true));
 
       const certificate = await rag.retrieve('income certificate');
-      assert.ok(certificate.chunks.length > 0);
-      assert.ok(certificate.chunks.every((chunk) => chunk.knowledge_domain === 'citizen_service' && chunk.verified));
+      assert.deepEqual(certificate.chunks, [], 'Certificate chunks with unknown verification metadata stay excluded');
       assert.ok(legal.chunks.every((legalChunk) =>
         certificate.chunks.every((serviceChunk) => legalChunk.id !== serviceChunk.id)
       ), 'Legal and citizen-service fallback results should remain separate');
@@ -991,7 +1079,7 @@ describe('RAG evaluation quality audit', () => {
     assert.deepEqual(selected, [], 'current rule requires builder-specific wording in the candidate');
   });
 
-  it('shows Qdrant topK can cut off a relevant chunk before legal topic filtering', async () => {
+  it('oversamples retrieval so topic filtering retains relevant evidence ranked below the first five', async () => {
     const rag = await import('../../src/modules/ai/rag.service.js');
     const legalRows = Array.from({ length: 5 }, (_, index) => ({
       id: `aid-${index}`, sourceId: 'aid-source', text: 'Legal aid services may be available under the Legal Services Authorities Act.',
@@ -1020,10 +1108,10 @@ describe('RAG evaluation quality audit', () => {
       const { filterLegalChunksForQuestion } = await import('../../src/modules/ai/ai.service.js');
       const question = 'What does BNSS section 173(3) provide for a cognizable offence?';
       const result = await rag.retrieve(question);
-      assert.equal(requestedLimit, 5);
+      assert.equal(requestedLimit, 15);
       assert.equal(ranked.length, 6, 'the relevant fixture is ranked sixth');
-      assert.ok(!result.chunks.some((row) => row.id === relevant.id));
-      assert.deepEqual(filterLegalChunksForQuestion(question, result.chunks), []);
+      assert.ok(result.chunks.some((row) => row.topic === relevant.section), 'oversampling keeps the relevant sixth result available to topic filtering');
+      assert.deepEqual(filterLegalChunksForQuestion(question, result.chunks).map((row) => row.topic), [relevant.section]);
     } finally {
       rag._setQdrantClient(null); rag._setEmbedClient(null); rag._setKnowledgeDbClient(null);
       if (oldFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK; else process.env.RAG_ALLOW_LOCAL_FALLBACK = oldFallback;

@@ -66,6 +66,18 @@ export function detectService(question) {
 }
 const LEGAL_TOPIC_RE = /fundamental rights?|constitutional rights?|article\s*(14|15|19|21|21a|23|24|25|32|226)|legal aid|free legal services?|legal services authorities? act|lok adalat|free lawyer|free vakil|मौलिक अधिकार|संवैधानिक अधिकार|नि(?:ः|:)?शुल्क\s+(?:कानूनी|विधिक)\s+सहायता|मुफ्त\s+कानूनी\s+सहायता|कानूनी सहायता|कानूनी सेवा|कानूनी मदद|मुफ्त वकील|विधिक सेवा|moolik adhikar|samvaidhanik adhikar|muft kanooni madad|free legal madad|free vakil|muft vakil|kanooni sahayata|\b(?:bnss|bharatiya nagarik suraksha sanhita|zero fir|fir|fir complaint|police complaint|police arrest|arrested by police|arrest rights|lawyer during interrogation|advocate during interrogation|domestic violence|women(?:'s)? helpline|child protection|child abuse|child safety|bachchon ki safety|bachon ki safety|pocso|juvenile justice|cybercrime|cyber crime|cyber fraud|online fraud|consumer rights|consumer complaint|consumer grievance|consumer helpline|national consumer helpline|nch|1930|1098|181|1915|defective product|product defect|warranty|poor service|seller.{0,25}refund|refund.{0,25}(?:seller|product|purchase|order))\b|\b(?:police|officer in charge)\b.{0,100}\brefus(?:e|es|ed|al|ing)\b.{0,80}\b(?:record|register)\b.{0,80}\b(?:information|complaint)\b.{0,80}\b(?:cognizable|cognisable)\s+offen[cs]e\b|घरेलू हिंसा|महिला हेल्पलाइन|बाल हेल्पलाइन|बाल सुरक्षा|बच्चों की सुरक्षा|बाल शोषण|यौन अपराध.*बच्च|साइबर अपराध|साइबर धोखाधड़ी|ऑनलाइन धोखाधड़ी|उपभोक्ता अधिकार|उपभोक्ता शिकायत|उपभोक्ता हेल्पलाइन|एफआईआर|प्राथमिकी|जीरो एफआईआर|गिरफ्तारी|पुलिस शिकायत|पुलिस अधिकार|पूछताछ में वकील|मजिस्ट्रेट|महिला अधिकार|बच्चों के अधिकार|cyber dhokha|online thagi|gharelu hinsa|mahila helpline|bachchon ki suraksha|bachon ki suraksha|bal suraksha|upbhokta shikayat|upbhokta adhikar|police me fir|police giraftari|girftari ke adhikar/i;
 const CYBERCRIME_REPORTING_RE = /\b(?:online payment fraud|payment fraud|financial cyber fraud|cyber financial fraud|online financial fraud|money stolen online|stolen money online|report cybercrime|report cyber crime|cybercrime\.gov\.in)\b|\b(?:online|internet|digital|bank|account|payment|transaction|transfer)\b.{0,50}\b(?:fraud|scam|theft|stole|stolen|unauthori[sz]ed|unapproved)\b|\b(?:stole|stolen|theft|unauthori[sz]ed|unapproved|fraudulent)\b.{0,50}\b(?:money|funds|payment|transaction|transfer|account)\b|\b(?:money|funds)\b.{0,50}\b(?:stolen|taken|deducted)\b.{0,50}\b(?:online|bank|account|transaction|payment|report)\b|\b(?:online payment|payment)\b.{0,32}\b(?:fraud|scam|thagi)\b|\b(?:paise|paisa|rupaye)\b.{0,32}\b(?:chori|thagi|fraud)\b|ऑनलाइन\s+(?:पेमेंट|भुगतान|फ्रॉड|धोखाधड़ी)|(?:ऑनलाइन|बैंक|खाते|लेनदेन).{0,50}(?:पैसे|रुपये).{0,32}(?:चोरी|कट|निकाल|धोखाधड़ी)|(?:पैसे|रुपये).{0,32}(?:चोरी|ठगी|धोखाधड़ी).{0,50}(?:ऑनलाइन|बैंक|खाते|लेनदेन|रिपोर्ट)|वित्तीय\s+साइबर\s+धोखाधड़ी|साइबरक्राइम\.gov\.in/i;
+const INFORMAL_CYBERCRIME_REPORTING_RE = /\bcyber\s+fraud\b|\b(?:i\s+)?(?:got|was|were|been)\s+scammed\b.{0,60}\b(?:online|internet|upi|bank|payment|money|report|complain)\b|\b(?:online|internet|upi|bank|payment)\b.{0,50}\b(?:scam(?:med|mer)?|fraud(?:ster)?|thagi)\b|\b(?:scam(?:mer|med)?|fraud(?:ster)?|thagi)\b.{0,50}\b(?:online|internet|upi|bank|payment|money|funds|report|complain)\b|\b(?:sent|transferred|paid)\b.{0,40}\b(?:money|funds|cash|paise|paisa|rupees?)\b.{0,40}\b(?:scam(?:mer)?|fraud(?:ster)?|thagi)\b|\b(?:scam(?:mer)?|fraud(?:ster)?|thagi)\b.{0,40}\b(?:money|funds|cash|paise|paisa|rupees?)\b|\b(?:mere\s+)?upi\b.{0,45}\b(?:paise|paisa|money|rupees?)\b.{0,50}\b(?:kat|deduct|fraud|scam|chori)\b|\b(?:paise|paisa|rupees?)\b.{0,40}\b(?:kat|deduct|chori)\b.{0,40}\b(?:upi|fraud|scam)\b/i;
+
+export function isCybercrimeReportingQuestion(question) {
+  if (typeof question !== 'string' || !question) return false;
+  const normalized = question
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return CYBERCRIME_REPORTING_RE.test(normalized) || INFORMAL_CYBERCRIME_REPORTING_RE.test(normalized);
+}
+
 export function isLegalQuestion(question) {
   if (typeof question !== 'string' || !question) return false;
   const normalized = question
@@ -73,13 +85,12 @@ export function isLegalQuestion(question) {
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return LEGAL_TOPIC_RE.test(normalized) || CYBERCRIME_REPORTING_RE.test(normalized);
+  return LEGAL_TOPIC_RE.test(normalized) || isCybercrimeReportingQuestion(normalized);
 }
 export function filterChunksByService(chunks, targetServiceId) {
   if (!chunks || chunks.length === 0) return chunks;
   if (targetServiceId) {
-    const filtered = chunks.filter((c) => c.service_id === targetServiceId);
-    return filtered.length > 0 ? filtered : chunks;
+    return chunks.filter((c) => c.service_id === targetServiceId);
   }
   const topService = chunks[0].service_id;
   return chunks.filter((c) => c.service_id === topService);
@@ -198,13 +209,54 @@ export function loadLocalChunks() {
 }
 /**
  * Keyword-overlap scoring — NOT semantic similarity.
- * Scores are in range [0.4, 0.95] based on word overlap between query and chunk.
+ * Positive scores are in range [0.4, 0.95]; zero-overlap chunks are excluded.
  * retrievalSource="local_fallback" always accompanies these scores.
  */
+const LOCAL_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'are', 'you', 'your', 'what', 'when', 'where', 'how', 'can', 'could', 'should', 'would',
+  'from', 'with', 'this', 'that', 'have', 'has', 'does', 'did', 'not', 'but', 'about', 'into', 'please',
+  'hai', 'hain', 'ho', 'ka', 'ke', 'ki', 'ko', 'me', 'mein', 'se', 'par', 'kya', 'kaise', 'kab', 'kahan', 'kar', 'kare', 'karo'
+]);
+
+function localTokens(text) {
+  return [...new Set((String(text || '').normalize('NFKC').toLowerCase().match(/[a-z0-9\u0900-\u097f]+/g) || [])
+    .filter((token) => token.length > 2 && !LOCAL_STOP_WORDS.has(token)))];
+}
+
+function isCloseLocalToken(left, right) {
+  if (left === right || left.includes(right) || right.includes(left)) return true;
+  if (left.length < 5 || right.length < 5 || Math.abs(left.length - right.length) > 1) return false;
+
+  // One-edit tolerance is only used by the offline lexical fallback, where
+  // semantic embeddings are unavailable. It handles simple typing errors.
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= left.length; i++) {
+    const current = [i];
+    let rowMinimum = i;
+    for (let j = 1; j <= right.length; j++) {
+      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1));
+      rowMinimum = Math.min(rowMinimum, current[j]);
+    }
+    if (rowMinimum > 1) return false;
+    previous = current;
+  }
+  return previous[right.length] <= 1;
+}
+
+/** Lexical fallback score, not semantic similarity or answer confidence. */
+export function scoreLocalChunk(question, chunkText) {
+  const queryTokens = localTokens(question);
+  if (!queryTokens.length) return 0;
+  const contentTokens = localTokens(chunkText);
+  const matchCount = queryTokens.filter((queryToken) =>
+    contentTokens.some((contentToken) => isCloseLocalToken(queryToken, contentToken))
+  ).length;
+  if (!matchCount) return 0;
+  return Math.min(0.95, 0.4 + (matchCount / queryTokens.length) * 0.55);
+}
+
 function retrieveLocal(question, state, topK = 5, targetServiceId = null, targetDomain = null) {
   const allLocal = loadLocalChunks();
-  const qLower = question.toLowerCase();
-  const words = qLower.match(/[a-z0-9\u0900-\u097F]+/g) || [];
   const scored = allLocal
     .filter(
       (c) =>
@@ -213,15 +265,8 @@ function retrieveLocal(question, state, topK = 5, targetServiceId = null, target
         (!targetDomain || (c.knowledge_domain || 'citizen_service') === targetDomain) &&
         (!targetServiceId || c.service_id === targetServiceId)
     )
-    .map((c) => {
-      const textLower = c.text.toLowerCase();
-      let matchCount = 0;
-      for (const w of words) {
-        if (w.length > 2 && textLower.includes(w)) matchCount++;
-      }
-      const score = Math.min(0.95, 0.4 + (matchCount / (words.length || 1)) * 0.55);
-      return { ...c, score };
-    });
+    .map((c) => ({ ...c, score: scoreLocalChunk(question, c.text) }))
+    .filter((c) => c.score > 0);
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK);
 }
@@ -311,6 +356,9 @@ async function hydrateQdrantHitsFromPostgres(hits, state) {
 export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
   const legal = isLegalQuestion(question);
   const detectedService = detectService(question);
+  // Retrieve a wider candidate set so post-retrieval topic filtering does not
+  // discard relevant evidence that ranked just below the initial top five.
+  const retrievalLimit = Math.max(topK, Math.min(topK * 3, 30));
   console.log('[RAG] Detected service:', detectedService, '| Retrieval starting…');
   const client = getQdrantClient();
   const vector = await embedQuery(question);
@@ -327,13 +375,20 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
             : [])
         ]
       };
+      const collection = legal ? 'legal_rights_chunks' : aiConfig.qdrant.collection;
+      console.info('[RAG] Route', JSON.stringify({
+        domain: legal ? 'legal_rights' : 'citizen_service',
+        serviceId: detectedService,
+        collection,
+        filterKeys: filter.must.map((condition) => condition.key),
+        topK: retrievalLimit
+      }));
       // Use client.query() — the current non-deprecated Qdrant JS API.
       // Returns QueryResponse = ScoredPoint[]
-      const collection = legal ? 'legal_rights_chunks' : aiConfig.qdrant.collection;
       const queryRes = await client.query(collection, {
         query: vector,
         filter,
-        limit: topK,
+        limit: retrievalLimit,
         with_payload: true,
         timeout: Math.ceil((aiConfig.timeoutMs || 15000) / 1000)
       });
@@ -343,6 +398,11 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
 
         try {
           const chunks = await hydrateQdrantHitsFromPostgres(hits, state);
+          console.info('[RAG] Hydration', JSON.stringify({
+            qdrantHits: hits.length,
+            uniqueChunkIds: new Set(hits.map((hit) => hit?.payload?.chunk_id).filter(Boolean)).size,
+            hydratedChunks: chunks.length
+          }));
           if (chunks.length > 0) {
             return { chunks, retrievalSource: 'qdrant', fallbackReason: null };
           }
@@ -357,7 +417,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
           }
 
           return {
-            chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
+            chunks: retrieveLocal(question, state, retrievalLimit, detectedService, legal ? 'legal_rights' : 'citizen_service'),
             retrievalSource: 'local_fallback',
             fallbackReason: 'postgres_no_verified_chunks'
           };
@@ -372,7 +432,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
           }
 
           return {
-            chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
+            chunks: retrieveLocal(question, state, retrievalLimit, detectedService, legal ? 'legal_rights' : 'citizen_service'),
             retrievalSource: 'local_fallback',
             fallbackReason: 'postgres_error'
           };
@@ -385,7 +445,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
       }
       console.warn('[RAG] Falling back to local keyword search (qdrant_zero_hits)');
       return {
-        chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
+        chunks: retrieveLocal(question, state, retrievalLimit, detectedService, legal ? 'legal_rights' : 'citizen_service'),
         retrievalSource: 'local_fallback',
         fallbackReason: 'qdrant_zero_hits'
       };
@@ -396,7 +456,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
       }
       console.warn('[RAG] Falling back to local keyword search (qdrant_error)');
       return {
-        chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
+        chunks: retrieveLocal(question, state, retrievalLimit, detectedService, legal ? 'legal_rights' : 'citizen_service'),
         retrievalSource: 'local_fallback',
         fallbackReason: 'qdrant_error'
       };
@@ -410,7 +470,7 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
   }
   console.warn('[RAG] Falling back to local keyword search (' + noClientReason + ')');
   return {
-    chunks: retrieveLocal(question, state, topK, detectedService, legal ? 'legal_rights' : 'citizen_service'),
+    chunks: retrieveLocal(question, state, retrievalLimit, detectedService, legal ? 'legal_rights' : 'citizen_service'),
     retrievalSource: 'local_fallback',
     fallbackReason: noClientReason
   };

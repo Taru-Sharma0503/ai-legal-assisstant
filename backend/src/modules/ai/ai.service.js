@@ -2,7 +2,7 @@ import { detectLanguage } from './language.js';
 import { UNKNOWN_FIELD_KEYWORDS, UNKNOWN_FIELD_MSG, LOW_CONF_MSG } from './knowledge.js';
 import { generateWithGemini } from './gemini.service.js';
 import { generateWithGroq } from './groq.service.js';
-import { retrieve, detectService, isLegalQuestion, filterChunksByService, buildSources } from './rag.service.js';
+import { retrieve, detectService, isLegalQuestion, isCybercrimeReportingQuestion, filterChunksByService, buildSources } from './rag.service.js';
 import { aiConfig } from '../../config/ai.js';
 
 const ONLINE_FIR_QUESTION_RE = /\b(?:online|internet|e-?filing|e-?fir)\b.{0,50}\b(?:fir|first information report)\b|\b(?:fir|first information report)\b.{0,50}\b(?:online|internet|portal)\b/i;
@@ -12,7 +12,7 @@ const CONSUMER_ACT_QUESTION_RE = /consumer protection act|section\s+2\s*\(\s*6\s
 const LEGAL_QUERY_RELEVANCE = [
   {
     question: /cybercrime|cyber\s+crime|cyber\s+fraud|online\s+(?:payment\s+)?(?:financial\s+)?fraud|payment\s+fraud|financial\s+cyber\s+fraud|stolen\s+money|unauthori[sz]ed\s+(?:payment|transaction|transfer)|1930|cybercrime\.gov\.in|अनधिकृत\s+(?:भुगतान|लेनदेन)|पैसे.{0,35}चोरी|रुपये.{0,35}चोरी|(?:online|internet|bank|account).{0,35}(?:fraud|scam|stolen)|(?:paise|paisa|rupaye).{0,35}(?:chori|thagi)/i,
-    candidate: /cybercrime|cyber\s+crime|cyber\s+fraud|financial\s+fraud|cybercrime\.gov\.in|\b1930\b|\bi4c\b/i
+    candidate: /national\s+cyber\s+crime\s+reporting|cybercrime\.gov\.in|\b1930\b|\bi4c\b|online\s+financial\s+fraud|financial\s+cyber\s+fraud/i
   },
   {
     question: ONLINE_FIR_QUESTION_RE,
@@ -60,9 +60,9 @@ export function filterLegalChunksForQuestion(question, chunks) {
   const cybercrimeRule = LEGAL_QUERY_RELEVANCE[0];
   // Theft, unauthorized transactions, and financial fraud are cyber-reporting
   // intents even if the question also mentions a consumer grievance channel.
-  if (CYBERCRIME_PRIORITY_RE.test(question)) {
+  if (isCybercrimeReportingQuestion(question) || CYBERCRIME_PRIORITY_RE.test(question)) {
     return chunks.filter((chunk) =>
-      cybercrimeRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.text || ''}`)
+      cybercrimeRule.candidate.test(`${chunk.topic || ''} ${chunk.title || ''} ${chunk.source_url || ''}`)
     );
   }
   if (ONLINE_FIR_QUESTION_RE.test(question)) {
@@ -235,6 +235,19 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
 
   if (filteredChunks.length === 0 || topScore < threshold) {
     const guardReason = candidateChunks.length === 0 ? 'no_chunks' : 'similarity_threshold';
+    console.info('[RAG] Decision', JSON.stringify({
+      domain: legalQuestion ? 'legal_rights' : 'citizen_service',
+      language: lang,
+      retrievalSource,
+      scoreMeaning: retrievalSource === 'local_fallback' ? 'lexical_overlap' : 'vector_similarity',
+      retrievedCount: chunks.length,
+      candidateCount: candidateChunks.length,
+      selectedCount: filteredChunks.length,
+      retrievalScore: topScore,
+      threshold,
+      guardReason,
+      sourceIds: []
+    }));
     // When the guard_reason is similarity_threshold or no_chunks and no service was detected by regex, suggested_service_id must be null.
     const finalSuggestedService = regexService || null;
     return {
@@ -266,13 +279,20 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
   }
 
   let genResult = null;
+  let generationFallbackReason = null;
   const provider = aiConfig.generationProvider;
   const useGemini = provider !== 'groq' && Date.now() >= geminiQuotaCooldownUntil;
+  console.info('[AI] Generation invoked', JSON.stringify({
+    provider: useGemini ? 'gemini' : 'groq',
+    candidateCount: filteredChunks.length,
+    sourceIds: sources.map((source) => source.id)
+  }));
 
   if (!useGemini) {
     try {
       genResult = await generateWithGroq(question, lang, filteredChunks);
     } catch (groqErr) {
+      generationFallbackReason = 'groq_generation_failed';
       console.error('[AI] Groq generation failed; using grounded chunk fallback:', safeProviderError(groqErr));
       genResult = fallbackFromChunks(filteredChunks, lang);
     }
@@ -281,23 +301,41 @@ export async function askService({ question, language, state = 'Uttar Pradesh', 
       genResult = await generateWithGemini(question, lang, filteredChunks);
       geminiQuotaCooldownUntil = 0;
     } catch (geminiErr) {
+      generationFallbackReason = 'gemini_generation_failed';
       if (isQuotaError(geminiErr)) geminiQuotaCooldownUntil = Date.now() + GEMINI_QUOTA_COOLDOWN_MS;
       console.warn('[AI] Gemini unavailable, attempting Groq fallback:', safeProviderError(geminiErr));
       try {
         genResult = await generateWithGroq(question, lang, filteredChunks);
       } catch (groqErr) {
+        generationFallbackReason = 'all_generation_providers_failed';
         console.error('[AI] Both generation providers failed; using grounded chunk fallback:', safeProviderError(groqErr));
         genResult = fallbackFromChunks(filteredChunks, lang);
       }
     }
   }
 
+  console.info('[RAG] Decision', JSON.stringify({
+    domain: legalQuestion ? 'legal_rights' : 'citizen_service',
+    language: lang,
+    retrievalSource,
+    scoreMeaning: retrievalSource === 'local_fallback' ? 'lexical_overlap' : 'vector_similarity',
+    retrievedCount: chunks.length,
+    candidateCount: candidateChunks.length,
+    selectedCount: filteredChunks.length,
+    retrievalScore: topScore,
+    threshold,
+    guardReason: genResult.needs_human ? 'llm_needs_human' : 'in_scope',
+    generationStatus: genResult.generation_status,
+    generationFallbackReason,
+    sourceIds: sources.map((source) => source.id)
+  }));
   return {
     answer: genResult.answer,
     needs_human: genResult.needs_human, needsHuman: genResult.needs_human,
     generation_status: genResult.generation_status,
     confidence, retrieval_score: confidence,
     retrieval_source: retrievalSource, fallback_reason: fallbackReason,
+    generation_fallback_reason: generationFallbackReason,
     guard_reason: genResult.needs_human ? 'llm_needs_human' : 'in_scope',
     sources,
     suggested_service_id: suggestedServiceId, suggestedService: suggestedServiceId,
@@ -663,6 +701,8 @@ export async function postMessageService(userId, conversationId, { question, lan
     confidence: confidenceNum,
     needsHuman: needsHumanBool,
     sources: formattedSources,
-    suggestedService
+    suggestedService,
+    generationStatus: result.generation_status,
+    generationFallbackReason: result.generation_fallback_reason || null
   };
 }
