@@ -38,6 +38,20 @@ function makeFakeKnowledgeDb(
   };
 }
 
+async function withOfflineRetrieval(run) {
+  const rag = await import('../../src/modules/ai/rag.service.js');
+  // `false` disables auto-creation from .env; `null` restores it. These tests
+  // exercise local fallback and must not contact configured Gemini/Qdrant.
+  rag._setQdrantClient(false);
+  rag._setEmbedClient(false);
+  try {
+    return await run(rag);
+  } finally {
+    rag._setQdrantClient(null);
+    rag._setEmbedClient(null);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // 1. embedQuery – calls real embedQuery() with a mocked embed client
 //    Verifies it reads embeddings[0].values, not embedding.values
@@ -246,6 +260,34 @@ describe('detectService – birth regex fix', () => {
     assert.equal(detectService('How do I get a passport?'), null);
   });
 });
+
+describe('detectService – citizen service language coverage', () => {
+  it('routes each implemented certificate service from English, Hindi, and Hinglish labels', async () => {
+    const { detectService } = await import('../../src/modules/ai/rag.service.js');
+    const examples = [
+      ['up_income_certificate', 'income certificate', 'आय प्रमाण पत्र', 'aay praman patra'],
+      ['up_caste_certificate', 'caste certificate', 'जाति प्रमाण पत्र', 'jati praman patra'],
+      ['up_domicile_certificate', 'domicile certificate', 'निवास प्रमाण पत्र', 'niwas praman patra'],
+      ['up_birth_certificate', 'birth certificate', 'जन्म प्रमाण पत्र', 'janm praman patra'],
+      ['up_death_certificate', 'death certificate', 'मृत्यु प्रमाण पत्र', 'mrityu praman patra'],
+      ['up_marriage_certificate', 'marriage certificate', 'विवाह प्रमाण पत्र', 'shaadi certificate'],
+      ['up_ews_certificate', 'EWS certificate', 'आर्थिक रूप से कमजोर EWS प्रमाण पत्र', 'EWS praman patra'],
+      ['up_disability_certificate', 'disability certificate', 'दिव्यांगता प्रमाण पत्र', 'divyangta praman patra'],
+      ['up_character_certificate', 'character certificate', 'चरित्र प्रमाण पत्र', 'charitra praman patra']
+    ];
+    for (const [serviceId, ...questions] of examples) {
+      for (const question of questions) assert.equal(detectService(question), serviceId, `${question} should route to ${serviceId}`);
+    }
+  });
+});
+
+describe('filterChunksByService – strict service isolation', () => {
+  it('does not pass chunks from another service when the target has no matching hits', async () => {
+    const { filterChunksByService } = await import('../../src/modules/ai/rag.service.js');
+    const unrelated = [{ service_id: 'up_caste_certificate', text: 'Caste certificate documents.' }];
+    assert.deepEqual(filterChunksByService(unrelated, 'up_income_certificate'), []);
+  });
+});
 // ─────────────────────────────────────────────────────────────────────────
 // 5. RAG_ALLOW_LOCAL_FALLBACK=false yields zero chunks when Qdrant is down
 // ─────────────────────────────────────────────────────────────────────────
@@ -268,21 +310,21 @@ describe('retrieve – RAG_ALLOW_LOCAL_FALLBACK=false', () => {
       _setEmbedClient(null);
     }
   });
-  it('returns chunks when fallback is enabled and Qdrant is unavailable', async () => {
-    const { retrieve, _setQdrantClient, _setEmbedClient } = await import('../../src/modules/ai/rag.service.js');
-    _setQdrantClient(null);
-    _setEmbedClient(null);
+  it('local fallback returns reviewed legal evidence and excludes certificate files with unknown verification status', async () => {
     const origFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
     process.env.RAG_ALLOW_LOCAL_FALLBACK = 'true';
-    const origKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
     try {
-      const { chunks } = await retrieve('income certificate documents', 'Uttar Pradesh');
-      assert.ok(chunks.length > 0, 'Must return local chunks when fallback enabled');
+      await withOfflineRetrieval(async ({ retrieve }) => {
+        const legal = await retrieve('free legal aid', 'Uttar Pradesh');
+        assert.ok(legal.chunks.length > 0, 'Reviewed legal chunks remain available to local fallback');
+        assert.ok(legal.chunks.every((chunk) => chunk.verified === true && chunk.knowledge_domain === 'legal_rights'));
+
+        const certificate = await retrieve('income certificate documents', 'Uttar Pradesh');
+        assert.deepEqual(certificate.chunks, [], 'Certificate JSON files without an explicit verified flag must not be returned');
+      });
     } finally {
       if (origFallback !== undefined) process.env.RAG_ALLOW_LOCAL_FALLBACK = origFallback;
       else delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
-      if (origKey !== undefined) process.env.GEMINI_API_KEY = origKey;
     }
   });
 });
@@ -315,6 +357,37 @@ describe('askService – unknown-field guard', () => {
 // 7. chunkBuilder produces non-empty chunks for all services
 // ─────────────────────────────────────────────────────────────────────────
 describe('chunkBuilder – all 9 service files', () => {
+  it('never promotes missing verification metadata and respects an explicit unverified chunk', async () => {
+    const { buildChunks } = await import('../../src/modules/ai/chunkBuilder.js');
+    const unknown = buildChunks({
+      service_metadata: { service_id: 'unknown-service', source_type: 'official_government_portal' },
+      vector_db_chunks: [{ chunk_id: 'unknown-chunk', text: 'Unreviewed content.', metadata: {} }]
+    });
+    const chunkDraft = buildChunks({
+      service_metadata: { service_id: 'approved-source', verified: true },
+      vector_db_chunks: [{ chunk_id: 'draft-chunk', text: 'Explicitly unverified content.', metadata: { verified: false } }]
+    });
+    const missingChunkStatus = buildChunks({
+      service_metadata: { service_id: 'approved-source', verified: true },
+      vector_db_chunks: [{ chunk_id: 'missing-status-chunk', text: 'Chunk status was omitted.', metadata: {} }]
+    });
+    const approved = buildChunks({
+      service_metadata: { service_id: 'approved-source', verified: true },
+      vector_db_chunks: [{ chunk_id: 'approved-chunk', text: 'Reviewed content.', metadata: { verified: true } }]
+    });
+
+    assert.equal(unknown[0].verified, false);
+    assert.equal(chunkDraft[0].verified, false);
+    assert.equal(missingChunkStatus[0].verified, false, 'source approval must not promote a chunk with missing review status');
+    assert.equal(approved[0].verified, true);
+  });
+
+  it('local lexical fallback rejects zero-overlap text and tolerates a one-character typo', async () => {
+    const { scoreLocalChunk } = await import('../../src/modules/ai/rag.service.js');
+    assert.equal(scoreLocalChunk('unrelated weather question', 'Income certificate required documents.'), 0);
+    assert.ok(scoreLocalChunk('income certifcate documents', 'Income certificate required documents.') > 0);
+  });
+
   it('produces at least 1 chunk per file', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
@@ -395,7 +468,7 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
     // Fake Gemini that throws
     const failingGemini = {
       models: {
-        generateContent: async () => { throw new Error('Gemini API quota exceeded'); }
+        generateContent: async () => { throw new Error('Gemini API unavailable'); }
       }
     };
     // Fake Groq that succeeds
@@ -410,6 +483,8 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
     };
     _setGeminiClient(failingGemini);
     _setGroqClient(successGroq);
+    const originalProvider = process.env.LLM_PROVIDER;
+    process.env.LLM_PROVIDER = 'gemini';
     const { askService } = await import('../../src/modules/ai/ai.service.js');
     const { _setQdrantClient, _setEmbedClient, _setKnowledgeDbClient } = await import('../../src/modules/ai/rag.service.js');
     // Inject a high-scoring Qdrant hit so we get past the guard
@@ -448,12 +523,15 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
         skipLlm: false
       });
       assert.equal(res.generation_status, 'groq', `Expected "groq", got: ${res.generation_status}`);
+      assert.equal(res.generation_fallback_reason, 'gemini_generation_failed');
     } finally {
       _setGeminiClient(null);
       _setGroqClient(null);
       _setKnowledgeDbClient(null);
       _setQdrantClient(null);
       _setEmbedClient(null);
+      if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = originalProvider;
       if (origFallback !== undefined) process.env.RAG_ALLOW_LOCAL_FALLBACK = origFallback;
       else delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
     }
@@ -475,6 +553,8 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
     };
     _setGeminiClient(failingGemini);
     _setGroqClient(failingGroq);
+    const originalProvider = process.env.LLM_PROVIDER;
+    process.env.LLM_PROVIDER = 'gemini';
     const { _setQdrantClient, _setEmbedClient, _setKnowledgeDbClient } = await import('../../src/modules/ai/rag.service.js');
     const fakeQdrant = {
       query: async () => ([{
@@ -513,12 +593,15 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
       });
       assert.equal(res.generation_status, 'fallback', `Expected "fallback", got: ${res.generation_status}`);
       assert.ok(res.answer.length > 0, 'Fallback answer must be non-empty');
+      assert.equal(res.generation_fallback_reason, 'all_generation_providers_failed');
     } finally {
       _setGeminiClient(null);
       _setGroqClient(null);
       _setKnowledgeDbClient(null);
       _setQdrantClient(null);
       _setEmbedClient(null);
+      if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = originalProvider;
       if (origFallback !== undefined) process.env.RAG_ALLOW_LOCAL_FALLBACK = origFallback;
       else delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
     }
@@ -528,17 +611,17 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
 // 10. askService end-to-end in-scope vs out-of-scope (real retrieve, skipLlm)
 // ─────────────────────────────────────────────────────────────────────────
 describe('askService – end-to-end in-scope vs out-of-scope', () => {
-  it('evaluates in-scope service question with needs_human=false in --no-llm mode', async () => {
+  it('does not answer a certificate question from chunks lacking explicit verification', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
-    const res = await askService({
+    const res = await withOfflineRetrieval(() => askService({
       question: 'What documents are required for an income certificate in UP?',
       language: 'en',
       skipLlm: true
-    });
+    }));
     assert.equal(res.suggested_service_id, 'up_income_certificate');
-    assert.equal(res.needs_human, false);
-    assert.equal(res.guard_reason, 'in_scope');
-    assert.equal(res.generation_status, 'skipped');
+    assert.equal(res.needs_human, true);
+    assert.equal(res.guard_reason, 'no_chunks');
+    assert.equal(res.generation_status, 'fallback');
   });
   it('evaluates out-of-scope question with needs_human=true and suggested_service_id=null', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
@@ -558,25 +641,27 @@ describe('askService – end-to-end in-scope vs out-of-scope', () => {
       else delete process.env.SIMILARITY_THRESHOLD;
     }
   });
-  it('caste certificate is routed correctly in --no-llm mode', async () => {
+  it('routes caste certificate questions but does not answer from unverified chunks', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
-    const res = await askService({
+    const res = await withOfflineRetrieval(() => askService({
       question: 'What documents are needed for a caste certificate?',
       language: 'en',
       skipLlm: true
-    });
+    }));
     assert.equal(res.suggested_service_id, 'up_caste_certificate');
-    assert.equal(res.needs_human, false);
+    assert.equal(res.needs_human, true);
+    assert.equal(res.guard_reason, 'no_chunks');
   });
-  it('marriage certificate question routes correctly in --no-llm mode', async () => {
+  it('routes marriage certificate questions but does not answer from unverified chunks', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
-    const res = await askService({
+    const res = await withOfflineRetrieval(() => askService({
       question: 'How do I apply for a marriage certificate in UP?',
       language: 'en',
       skipLlm: true
-    });
+    }));
     assert.equal(res.suggested_service_id, 'up_marriage_certificate');
-    assert.equal(res.needs_human, false);
+    assert.equal(res.needs_human, true);
+    assert.equal(res.guard_reason, 'no_chunks');
   });
   it('ration card is a known near-domain overlap: accepts true OOS OR documented gap', async () => {
     // Ration card scores \~0.687 from Qdrant against domicile/income chunks because it
@@ -626,16 +711,16 @@ describe('Regression: Caste documents context-faithful answer', () => {
       );
     }
   });
-  it('askService in --no-llm mode for caste documents returns the correct service', async () => {
+  it('identifies the caste certificate service but escalates while local evidence is unverified', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
-    const res = await askService({
+    const res = await withOfflineRetrieval(() => askService({
       question: 'What documents are needed for a caste certificate?',
       language: 'en',
       skipLlm: true
-    });
+    }));
     assert.equal(res.suggested_service_id, 'up_caste_certificate');
-    assert.equal(res.needs_human, false);
-    assert.equal(res.guard_reason, 'in_scope');
+    assert.equal(res.needs_human, true);
+    assert.equal(res.guard_reason, 'no_chunks');
   });
 });
 

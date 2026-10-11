@@ -45,7 +45,8 @@ function extractMeta(svc) {
     'https://edistrict.up.gov.in';
   const source_type = meta.source_type || svc.source_type || 'official_government_portal';
   const state = meta.state || svc.state || 'Uttar Pradesh';
-  const verified = meta.verified ?? svc.verified ?? (source_type.startsWith('official') || source_type.startsWith('government') || true);
+  const verificationStatus = meta.verified ?? svc.verified;
+  const verified = verificationStatus === true;
   return { service_id, name_en, department, source_url, source_type, state, verified };
 }
 
@@ -88,6 +89,9 @@ export function buildChunks(svc, fileName) {
         source_url: cm.source_url || base.source_url,
         department: cm.department || base.department,
         state: cm.state || base.state,
+        // Authored chunks need their own explicit approval. A verified source
+        // must not silently promote a chunk whose verification is missing.
+        verified: base.verified === true && cm.verified === true,
         topic: cm.topic || cm.section || 'general',
         language: lang,
         title: cm.service_name || meta.name_en,
