@@ -166,17 +166,27 @@ model OfficeService {
 }
 
 model Application {
-  id              String            @id @default(uuid())
-  referenceNumber String            @unique
-  userId          String
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serviceId       String
-  service         Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  status          ApplicationStatus @default(DRAFT)
-  applicationDate DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id                   String            @id @default(uuid())
+  referenceNumber      String            @unique
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId            String
+  service              Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  status               ApplicationStatus @default(DRAFT)
+  applicationDate      DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
-  documents       ApplicationDocument[]
+  applicantName        String?
+  applicantDateOfBirth DateTime?
+  applicantGender      String?
+  applicantMobile      String?
+  applicantEmail       String?
+  applicantAddress     String?
+  annualIncome         Float?
+  occupation           String?
+  incomeSource         String?
+
+  documents            ApplicationDocument[]
 
   @@map("applications")
 }
