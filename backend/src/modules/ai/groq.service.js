@@ -24,7 +24,7 @@ let groqClientInstance = null;
 // Pass client object to inject, `false` to disable, `null` to reset.
 export function _setGroqClient(client) { groqClientInstance = client; }
 
-export async function generateWithGroq(question, language, chunks) {
+export async function generateWithGroq(question, language, chunks, options = {}) {
   if (groqClientInstance === false) {
     throw new Error('Groq disabled by test injection.');
   }
@@ -37,7 +37,7 @@ export async function generateWithGroq(question, language, chunks) {
     timeout: aiConfig.timeoutMs,
     maxRetries: 0
   });
-  const userMessage = buildUserMessage(question, language, chunks);
+  const userMessage = buildUserMessage(question, language, chunks, options);
 
   const response = await groq.chat.completions.create({
     model: aiConfig.groq.model,

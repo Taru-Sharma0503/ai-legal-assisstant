@@ -20,8 +20,9 @@ function setupRetrievalMocks() {
   };
   const embed = {
     models: {
-      embedContent: async () => {
+      embedContent: async ({ contents }) => {
         embeddingCalls += 1;
+        retrievalQueries.push(contents[0]);
         return { embeddings: [{ values: [0.1, 0.2, 0.3] }] };
       }
     }
@@ -47,7 +48,8 @@ function setupRetrievalMocks() {
       }]
     }
   };
-  return { qdrant, embed, db, getEmbeddingCalls: () => embeddingCalls };
+  const retrievalQueries = [];
+  return { qdrant, embed, db, getEmbeddingCalls: () => embeddingCalls, retrievalQueries };
 }
 
 function successfulGroq(content = 'Groq answer') {
@@ -125,6 +127,133 @@ describe('generation provider routing', () => {
       geminiService._setGeminiClient(null);
       groqService._setGroqClient(null);
     }
+  });
+
+  it('keeps follow-up retrieval context out of generation intent for both providers', async () => {
+    const gemini = await import('../../src/modules/ai/gemini.service.js');
+    const groq = await import('../../src/modules/ai/groq.service.js');
+    const evidence = [{ topic: 'Income Certificate', language: 'en', text: 'Required documents: Passport Size Photograph, Self-Certified Declaration Form, and income proof. Aadhaar mobile OTP authentication (e-KYC) is used in the online application process. Apply on eDistrict, submit the form, and pay the application fee of ₹30.' }];
+    const cases = [
+      { latest: 'Is Aadhaar verification mentioned in the income-certificate process?', retrieval: 'Which documents are listed for an income certificate? Is Aadhaar verification mentioned in the income-certificate process?', intent: 'Give a direct yes/no answer first', language: 'en' },
+      { latest: 'Is Aadhaar verification mentioned in the income-certificate process?', retrieval: 'income certificate', intent: 'Give a direct yes/no answer first', language: 'en' },
+      { latest: 'What is the application fee?', retrieval: 'How do I apply for an income certificate? What is the application fee?', intent: 'State the requested fee or fact directly', language: 'en' },
+      { latest: 'क्या आय प्रमाणपत्र की प्रक्रिया में आधार सत्यापन का उल्लेख है?', retrieval: 'आय प्रमाणपत्र के दस्तावेज़ कौन से हैं? क्या आय प्रमाणपत्र की प्रक्रिया में आधार सत्यापन का उल्लेख है?', intent: 'Give a direct yes/no answer first', language: 'hi' },
+      { latest: 'Which documents are listed for an income certificate?', retrieval: 'Which documents are listed for an income certificate?', intent: 'Return only the requested, verified documents', language: 'en' },
+      { latest: 'How do I apply for an income certificate?', retrieval: 'How do I apply for an income certificate?', intent: 'Give the necessary verified application steps', language: 'en' }
+    ];
+
+    for (const provider of ['gemini', 'groq']) {
+      for (const item of cases) {
+        let captured = '';
+        const answer = item.intent.startsWith('Give a direct yes')
+          ? item.language === 'hi' ? 'हाँ, प्रक्रिया में आधार मोबाइल OTP प्रमाणीकरण (e-KYC) का उल्लेख है।' : 'Yes. The process mentions Aadhaar mobile OTP authentication (e-KYC).'
+          : item.intent.startsWith('Return')
+            ? 'Required documents: Passport Size Photograph, Self-Certified Declaration Form, and income proof.'
+            : item.intent.startsWith('Give the necessary')
+              ? '1. Apply on eDistrict. 2. Submit the form and pay the stated fee.'
+              : 'The application fee is ₹30.';
+        if (provider === 'gemini') {
+          gemini._setGeminiClient({ models: { generateContent: async ({ contents }) => { captured = contents[0]; return { text: answer }; } } });
+        } else {
+          groq._setGroqClient({ chat: { completions: { create: async ({ messages }) => { captured = messages[1].content; return { choices: [{ message: { content: answer } }] }; } } } });
+        }
+        const result = provider === 'gemini'
+          ? await gemini.generateWithGemini(item.latest, item.language, evidence)
+          : await groq.generateWithGroq(item.latest, item.language, evidence);
+        assert.match(captured, new RegExp(item.intent, 'i'), `${provider}: ${item.latest}`);
+        if (item.retrieval !== item.latest) {
+          const earlierQuestion = item.retrieval.replace(item.latest, '').trim();
+          if (earlierQuestion) assert.ok(!captured.includes(earlierQuestion), 'retrieval history must not be passed to generation');
+        }
+        assert.ok(captured.includes(item.latest));
+        assert.ok(!captured.includes('conversation history'));
+        assert.equal(result.answer, answer);
+        if (item.intent.startsWith('Give a direct yes')) assert.match(result.answer, /^(Yes|हाँ)/);
+        if (item.latest.startsWith('Which documents')) assert.match(result.answer, /Passport Size Photograph.*Self-Certified Declaration Form.*income proof/);
+        if (item.latest.startsWith('How do I apply')) assert.match(result.answer, /1\./);
+      }
+    }
+    gemini._setGeminiClient(null);
+    groq._setGroqClient(null);
+  });
+
+  it('uses the latest question for generation while retaining follow-up context for retrieval', async () => {
+    const originalProvider = process.env.LLM_PROVIDER;
+    const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    for (const provider of ['gemini', 'groq']) {
+      process.env.LLM_PROVIDER = provider;
+      let prompt = '';
+      const answer = 'Yes. The process mentions Aadhaar mobile OTP authentication (e-KYC).';
+      const mocks = await installMocks({
+        gemini: { models: { generateContent: async ({ contents }) => { prompt = contents[0]; return { text: answer }; } } },
+        groq: { chat: { completions: { create: async ({ messages }) => { prompt = messages[1].content; return { choices: [{ message: { content: answer } }] }; } } } }
+      });
+      try {
+        const { askService } = await import('../../src/modules/ai/ai.service.js');
+        const latest = 'Is Aadhaar verification mentioned in the income-certificate process?';
+        const retrieval = 'Which documents are listed for an income certificate? ' + latest;
+        const result = await askService({ question: latest, retrievalQuestion: retrieval, language: 'en' });
+        assert.equal(result.answer, answer);
+        assert.match(prompt, /Give a direct yes\/no answer first/i);
+        assert.ok(prompt.includes(latest));
+        assert.ok(!prompt.includes('Which documents are listed'));
+        assert.equal(mocks.retrievalQueries.at(-1), retrieval);
+      } finally {
+        mocks.reset();
+      }
+    }
+    if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+    else process.env.LLM_PROVIDER = originalProvider;
+    if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
+  });
+
+  it('reproduces the hyphenated income-certificate checklist then Aadhaar follow-up sequence', async () => {
+    const originalProvider = process.env.LLM_PROVIDER;
+    const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+    for (const provider of ['gemini', 'groq']) {
+      process.env.LLM_PROVIDER = provider;
+      const prompts = [];
+      const mocks = await installMocks({
+        gemini: { models: { generateContent: async ({ contents }) => {
+          prompts.push(contents[0]);
+          return { text: prompts.length === 1
+            ? 'Required documents: Passport Size Photograph, Self-Certified Declaration Form, and income proof.'
+            : 'Yes. The income-certificate process mentions Aadhaar mobile OTP authentication (e-KYC) for the online application.' };
+        } } },
+        groq: { chat: { completions: { create: async ({ messages }) => {
+          prompts.push(messages[1].content);
+          return { choices: [{ message: { content: prompts.length === 1
+            ? 'Required documents: Passport Size Photograph, Self-Certified Declaration Form, and income proof.'
+            : 'Yes. The income-certificate process mentions Aadhaar mobile OTP authentication (e-KYC) for the online application.' } }] };
+        } } } }
+      });
+      try {
+        const { createConversationService, postMessageService } = await import('../../src/modules/ai/ai.service.js');
+        const conversation = await createConversationService(`rag-followup-${provider}`, { language: 'en' });
+        const first = await postMessageService(`rag-followup-${provider}`, conversation.conversationId, {
+          question: 'Which documents are listed for an income certificate?'
+        });
+        const followup = await postMessageService(`rag-followup-${provider}`, conversation.conversationId, {
+          question: 'Is Aadhaar verification mentioned in the income-certificate process?'
+        });
+        assert.match(first.answer, /Passport Size Photograph.*Self-Certified Declaration Form.*income proof/);
+        assert.match(followup.answer, /^Yes\b.*Aadhaar mobile OTP authentication \(e-KYC\)/);
+        assert.ok(!followup.answer.includes('Passport Size Photograph'));
+        assert.match(prompts[1], /Give a direct yes\/no answer first/i);
+        assert.ok(prompts[1].includes('User question: Is Aadhaar verification mentioned in the income-certificate process?'));
+        assert.ok(!prompts[1].includes('User question: Which documents are listed'));
+        assert.equal(mocks.retrievalQueries[1], 'Which documents are listed for an income certificate?. Is Aadhaar verification mentioned in the income-certificate process?');
+      } finally {
+        mocks.reset();
+      }
+    }
+    if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+    else process.env.LLM_PROVIDER = originalProvider;
+    if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
   });
 
   it('uses Groq directly when LLM_PROVIDER=groq and still uses Gemini embeddings', async () => {

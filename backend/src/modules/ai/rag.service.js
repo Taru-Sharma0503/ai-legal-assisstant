@@ -64,6 +64,30 @@ export function detectService(question) {
   }
   return null;
 }
+
+export function detectServices(question) {
+  if (!question || OTHER_STATES_RE.test(question)) return [];
+  return SERVICE_PATTERNS
+    .filter(({ pattern }) => pattern.test(question))
+    .map(({ service_id }) => service_id);
+}
+
+const SERVICE_NAMES = Object.freeze({
+  up_income_certificate: 'Income Certificate',
+  up_caste_certificate: 'Caste Certificate',
+  up_domicile_certificate: 'Domicile Certificate',
+  up_birth_certificate: 'Birth Certificate',
+  up_death_certificate: 'Death Certificate',
+  up_marriage_certificate: 'Marriage Certificate',
+  up_ews_certificate: 'EWS Certificate',
+  up_disability_certificate: 'Disability Certificate',
+  up_character_certificate: 'Character Certificate'
+});
+export function serviceName(serviceId) { return SERVICE_NAMES[serviceId] || serviceId; }
+
+export function isServiceComparison(question) {
+  return /\b(?:compare|comparison|versus|vs\.?|difference between)\b|तुलना|अंतर\s*(?:बताएं|क्या)/i.test(question || '');
+}
 const LEGAL_TOPIC_RE = /fundamental rights?|constitutional rights?|article\s*(14|15|19|21|21a|23|24|25|32|226)|legal aid|free legal services?|legal services authorities? act|lok adalat|free lawyer|free vakil|मौलिक अधिकार|संवैधानिक अधिकार|नि(?:ः|:)?शुल्क\s+(?:कानूनी|विधिक)\s+सहायता|मुफ्त\s+कानूनी\s+सहायता|कानूनी सहायता|कानूनी सेवा|कानूनी मदद|मुफ्त वकील|विधिक सेवा|moolik adhikar|samvaidhanik adhikar|muft kanooni madad|free legal madad|free vakil|muft vakil|kanooni sahayata|\b(?:bnss|bharatiya nagarik suraksha sanhita|zero fir|fir|fir complaint|police complaint|police arrest|arrested by police|arrest rights|lawyer during interrogation|advocate during interrogation|domestic violence|women(?:'s)? helpline|child protection|child abuse|child safety|bachchon ki safety|bachon ki safety|pocso|juvenile justice|cybercrime|cyber crime|cyber fraud|online fraud|consumer rights|consumer complaint|consumer grievance|consumer helpline|national consumer helpline|nch|1930|1098|181|1915|defective product|product defect|warranty|poor service|seller.{0,25}refund|refund.{0,25}(?:seller|product|purchase|order))\b|\b(?:police|officer in charge)\b.{0,100}\brefus(?:e|es|ed|al|ing)\b.{0,80}\b(?:record|register)\b.{0,80}\b(?:information|complaint)\b.{0,80}\b(?:cognizable|cognisable)\s+offen[cs]e\b|घरेलू हिंसा|महिला हेल्पलाइन|बाल हेल्पलाइन|बाल सुरक्षा|बच्चों की सुरक्षा|बाल शोषण|यौन अपराध.*बच्च|साइबर अपराध|साइबर धोखाधड़ी|ऑनलाइन धोखाधड़ी|उपभोक्ता अधिकार|उपभोक्ता शिकायत|उपभोक्ता हेल्पलाइन|एफआईआर|प्राथमिकी|जीरो एफआईआर|गिरफ्तारी|पुलिस शिकायत|पुलिस अधिकार|पूछताछ में वकील|मजिस्ट्रेट|महिला अधिकार|बच्चों के अधिकार|cyber dhokha|online thagi|gharelu hinsa|mahila helpline|bachchon ki suraksha|bachon ki suraksha|bal suraksha|upbhokta shikayat|upbhokta adhikar|police me fir|police giraftari|girftari ke adhikar/i;
 const CYBERCRIME_REPORTING_RE = /\b(?:online payment fraud|payment fraud|financial cyber fraud|cyber financial fraud|online financial fraud|money stolen online|stolen money online|report cybercrime|report cyber crime|cybercrime\.gov\.in)\b|\b(?:online|internet|digital|bank|account|payment|transaction|transfer)\b.{0,50}\b(?:fraud|scam|theft|stole|stolen|unauthori[sz]ed|unapproved)\b|\b(?:stole|stolen|theft|unauthori[sz]ed|unapproved|fraudulent)\b.{0,50}\b(?:money|funds|payment|transaction|transfer|account)\b|\b(?:money|funds)\b.{0,50}\b(?:stolen|taken|deducted)\b.{0,50}\b(?:online|bank|account|transaction|payment|report)\b|\b(?:online payment|payment)\b.{0,32}\b(?:fraud|scam|thagi)\b|\b(?:paise|paisa|rupaye)\b.{0,32}\b(?:chori|thagi|fraud)\b|ऑनलाइन\s+(?:पेमेंट|भुगतान|फ्रॉड|धोखाधड़ी)|(?:ऑनलाइन|बैंक|खाते|लेनदेन).{0,50}(?:पैसे|रुपये).{0,32}(?:चोरी|कट|निकाल|धोखाधड़ी)|(?:पैसे|रुपये).{0,32}(?:चोरी|ठगी|धोखाधड़ी).{0,50}(?:ऑनलाइन|बैंक|खाते|लेनदेन|रिपोर्ट)|वित्तीय\s+साइबर\s+धोखाधड़ी|साइबरक्राइम\.gov\.in/i;
 const INFORMAL_CYBERCRIME_REPORTING_RE = /\bcyber\s+fraud\b|\b(?:i\s+)?(?:got|was|were|been)\s+scammed\b.{0,60}\b(?:online|internet|upi|bank|payment|money|report|complain)\b|\b(?:online|internet|upi|bank|payment)\b.{0,50}\b(?:scam(?:med|mer)?|fraud(?:ster)?|thagi)\b|\b(?:scam(?:mer|med)?|fraud(?:ster)?|thagi)\b.{0,50}\b(?:online|internet|upi|bank|payment|money|funds|report|complain)\b|\b(?:sent|transferred|paid)\b.{0,40}\b(?:money|funds|cash|paise|paisa|rupees?)\b.{0,40}\b(?:scam(?:mer)?|fraud(?:ster)?|thagi)\b|\b(?:scam(?:mer)?|fraud(?:ster)?|thagi)\b.{0,40}\b(?:money|funds|cash|paise|paisa|rupees?)\b|\b(?:mere\s+)?upi\b.{0,45}\b(?:paise|paisa|money|rupees?)\b.{0,50}\b(?:kat|deduct|fraud|scam|chori)\b|\b(?:paise|paisa|rupees?)\b.{0,40}\b(?:kat|deduct|chori)\b.{0,40}\b(?:upi|fraud|scam)\b/i;
@@ -98,8 +122,17 @@ export function filterChunksByService(chunks, targetServiceId) {
 export function buildSources(chunks) {
   const seen = new Set();
   const sources = [];
+  const orderedChunks = [];
+  const seenServices = new Set();
   for (const c of chunks) {
-    const key = c.source_id || c.id || `${c.service_id}:${c.topic}`;
+    if (!seenServices.has(c.service_id)) {
+      seenServices.add(c.service_id);
+      orderedChunks.push(c);
+    }
+  }
+  for (const c of chunks) if (!orderedChunks.includes(c)) orderedChunks.push(c);
+  for (const c of orderedChunks) {
+    const key = `${c.service_id || ''}:${c.source_id || c.id || c.source_ref || c.topic || ''}`;
     if (!seen.has(key)) {
       seen.add(key);
       sources.push({
@@ -112,7 +145,7 @@ export function buildSources(chunks) {
         source_type: c.source_type || 'official_government_portal'
       });
     }
-    if (sources.length >= 3) break;
+    if (sources.length >= 5) break;
   }
   return sources;
 }
@@ -353,9 +386,9 @@ async function hydrateQdrantHitsFromPostgres(hits, state) {
  * returns zero chunks so ai.service.js emits needs_human instead of
  * keyword-matching.
  */
-export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
+async function retrieveSingle(question, state = 'Uttar Pradesh', topK = 5, serviceOverride = null) {
   const legal = isLegalQuestion(question);
-  const detectedService = detectService(question);
+  const detectedService = serviceOverride || detectService(question);
   // Retrieve a wider candidate set so post-retrieval topic filtering does not
   // discard relevant evidence that ranked just below the initial top five.
   const retrievalLimit = Math.max(topK, Math.min(topK * 3, 30));
@@ -474,4 +507,53 @@ export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
     retrievalSource: 'local_fallback',
     fallbackReason: noClientReason
   };
+}
+
+function mergeServiceResults(results) {
+  const byService = results.map(({ serviceId, result }) => ({
+    serviceId,
+    result,
+    chunks: result.chunks
+      .filter((chunk) => !chunk.service_id || chunk.service_id === serviceId)
+      .map((chunk) => ({
+        ...chunk,
+        service_id: chunk.service_id || serviceId,
+        title: chunk.title || serviceName(serviceId)
+      }))
+  }));
+  const merged = [];
+  const seen = new Set();
+  for (let index = 0; byService.some(({ chunks }) => index < chunks.length); index++) {
+    for (const group of byService) {
+      const chunk = group.chunks[index];
+      if (!chunk) continue;
+      const key = `${chunk.service_id}:${chunk.source_id || chunk.id || chunk.source_ref}:${chunk.topic}:${chunk.text}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(chunk);
+      }
+    }
+  }
+  const reasons = [...new Set(results.map(({ result }) => result.fallbackReason).filter(Boolean))];
+  return {
+    chunks: merged,
+    retrievalSource: results.every(({ result }) => result.retrievalSource === 'qdrant') ? 'qdrant' : 'local_fallback',
+    fallbackReason: reasons.length ? reasons.join(',') : null,
+    comparedServices: results.map(({ serviceId }) => ({
+      service_id: serviceId,
+      title: serviceName(serviceId),
+      available: byService.some((group) => group.serviceId === serviceId && group.chunks.length > 0)
+    }))
+  };
+}
+
+export async function retrieve(question, state = 'Uttar Pradesh', topK = 5) {
+  const comparisonServices = isServiceComparison(question) ? detectServices(question) : [];
+  if (comparisonServices.length < 2) return retrieveSingle(question, state, topK);
+
+  const results = await Promise.all(comparisonServices.map(async (serviceId) => ({
+    serviceId,
+    result: await retrieveSingle(question, state, topK, serviceId)
+  })));
+  return mergeServiceResults(results);
 }
