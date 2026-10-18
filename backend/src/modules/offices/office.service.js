@@ -1,89 +1,86 @@
 import { prisma, isDbConnected } from '../../config/db.js';
+import { logger } from '../../utils/logger.js';
+import { OFFICE_RECORDS } from '../../utils/officeSeed.js';
 
-export const INITIAL_OFFICES = [
-  {
-    id: 'off-001-ghaziabad',
-    name: 'Tehsil Office',
-    address: 'Collectorate Compound, Raj Nagar',
-    city: 'Ghaziabad',
-    state: 'Uttar Pradesh',
-    pincode: '201001',
-    latitude: 28.67,
-    longitude: 77.43,
-    phone: '0120-2828281',
-    workingHours: '10:00-17:00',
-    serviceIds: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'b2c3d4e5-f6a7-8901-bcde-f12345678901', 'c3d4e5f6-a7b8-9012-cdef-123456789012']
-  },
-  {
-    id: 'off-002-noida',
-    name: 'SDM Office & Citizen Facilitation Centre',
-    address: 'Sector 27, Pocket A',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    pincode: '201301',
-    latitude: 28.53,
-    longitude: 77.39,
-    phone: '0120-2525251',
-    workingHours: '09:30-17:30',
-    serviceIds: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'b2c3d4e5-f6a7-8901-bcde-f12345678901']
-  },
-  {
-    id: 'off-003-delhi',
-    name: 'Sub-Divisional Magistrate Office (Central)',
-    address: '14 Daryaganj, Old Employment Exchange Building',
-    city: 'New Delhi',
-    state: 'Delhi',
-    pincode: '110002',
-    latitude: 28.64,
-    longitude: 77.24,
-    phone: '011-23275141',
-    workingHours: '10:00-17:00',
-    serviceIds: ['d4e5f6a7-b8c9-0123-def1-234567890123']
-  }
-];
+export const INITIAL_OFFICES = OFFICE_RECORDS;
+
+const supportsService = (office, serviceId) =>
+  office.serviceIds?.includes(serviceId) || office.services?.some((service) => service.serviceId === serviceId);
+
+const matchesTextFilter = (value, filter) =>
+  !filter || value?.toLocaleLowerCase().includes(filter.toLocaleLowerCase());
+
+const matchesFallbackFilters = (office, { city, state, serviceId }) =>
+  matchesTextFilter(office.city, city) &&
+  matchesTextFilter(office.state, state) &&
+  (!serviceId || supportsService(office, serviceId));
+
+const isValidCoordinate = (latitude, longitude) =>
+  Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+  Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
 
 export const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Earth radius in km
+  if (!isValidCoordinate(lat1, lon1) || !isValidCoordinate(lat2, lon2)) return null;
+
+  const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    Math.sin(dLon / 2) ** 2;
+  // Floating point rounding can put a just-out-of-range value into sqrt(1 - a).
+  const clampedA = Math.min(1, Math.max(0, a));
+  return R * 2 * Math.atan2(Math.sqrt(clampedA), Math.sqrt(1 - clampedA));
 };
 
-export const searchOffices = async ({ serviceId, city, state, latitude, longitude, radiusKm }) => {
-  let dbOffices = [];
-
-  if (prisma && isDbConnected) {
+export const createOfficeSearch = ({
+  db = prisma,
+  dbConnected = () => isDbConnected,
+  fallbackOffices = INITIAL_OFFICES,
+  environment = process.env.NODE_ENV,
+  log = logger
+} = {}) => async ({ serviceId, city, state, latitude, longitude, radiusKm }) => {
+  let offices;
+  const connected = typeof dbConnected === 'function' ? dbConnected() : dbConnected;
+  if (db && connected) {
     try {
       const where = {
         ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
         ...(state ? { state: { contains: state, mode: 'insensitive' } } : {}),
         ...(serviceId ? { services: { some: { serviceId } } } : {})
       };
-      dbOffices = await prisma.office.findMany({ where });
-    } catch (err) {
-      // fallback
+      // An empty result may mean this database has not received the curated office catalogue.
+      offices = await db.office.findMany({
+        where,
+        include: { services: { include: { service: true } } }
+      });
+      if (offices.length === 0 && environment !== 'production') {
+        const localMatches = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city, state, serviceId }));
+        if (localMatches.length > 0) {
+          log.warn('[Offices] No database matches; serving curated local office records in non-production');
+          offices = localMatches;
+        }
+      }
+    } catch (error) {
+      log.error('[Offices] Database search failed:', error);
+      if (environment === 'production') throw error;
+      offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city, state, serviceId }));
     }
+  } else {
+    if (environment === 'production') {
+      const error = new Error('Office database is unavailable');
+      log.error('[Offices] Database search unavailable:', error);
+      throw error;
+    }
+    offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city, state, serviceId }));
   }
 
-  const officesList = dbOffices.length > 0 ? dbOffices : INITIAL_OFFICES.filter(o => {
-    if (city && !o.city.toLowerCase().includes(city.toLowerCase())) return false;
-    if (state && !o.state.toLowerCase().includes(state.toLowerCase())) return false;
-    if (serviceId && o.serviceIds && !o.serviceIds.includes(serviceId)) return false;
-    return true;
-  });
-
-  const results = officesList.map(office => {
-    let distanceKm = null;
-    if (latitude !== undefined && longitude !== undefined) {
-      const dist = calculateHaversineDistance(latitude, longitude, office.latitude, office.longitude);
-      distanceKm = Number(dist.toFixed(1));
-    }
-
+  const hasOrigin = isValidCoordinate(latitude, longitude);
+  const results = offices.map((office) => {
+    const distance = hasOrigin
+      ? calculateHaversineDistance(latitude, longitude, office.latitude, office.longitude)
+      : null;
     return {
       id: office.id,
       name: office.name,
@@ -91,22 +88,38 @@ export const searchOffices = async ({ serviceId, city, state, latitude, longitud
       city: office.city,
       state: office.state,
       pincode: office.pincode,
-      latitude: office.latitude,
-      longitude: office.longitude,
+      latitude: Number.isFinite(office.latitude) ? office.latitude : null,
+      longitude: Number.isFinite(office.longitude) ? office.longitude : null,
       phone: office.phone || '',
-      workingHours: office.workingHours || '10:00-17:00',
-      ...(distanceKm !== null ? { distanceKm } : {})
+      workingHours: office.workingHours || null,
+      sourceName: office.sourceName || null,
+      sourceUrl: office.sourceUrl || null,
+      verifiedAt: office.verifiedAt instanceof Date ? office.verifiedAt.toISOString() : office.verifiedAt || null,
+      coordinateSource: office.coordinateSource || null,
+      coordinateApproximate: office.coordinateApproximate === true,
+      services: (office.services || []).map((link) => ({
+        id: link.service?.id || link.serviceId,
+        name: link.service?.name || link.serviceName || null,
+        sourceName: link.sourceName || null,
+        sourceUrl: link.sourceUrl || null,
+        verifiedAt: link.verifiedAt instanceof Date ? link.verifiedAt.toISOString() : link.verifiedAt || null,
+        // The current DB schema has no link-level status column. Unknown is safer than
+        // presenting legacy database links as officially verified.
+        verificationStatus: link.verificationStatus || 'unknown'
+      })),
+      ...(distance !== null ? { distanceKm: Number(distance.toFixed(1)) } : {})
     };
   });
 
-  if (latitude !== undefined && longitude !== undefined) {
-    let filtered = results;
-    if (radiusKm !== undefined) {
-      filtered = filtered.filter(o => o.distanceKm <= radiusKm);
-    }
-    filtered.sort((a, b) => a.distanceKm - b.distanceKm);
-    return filtered;
-  }
+  if (!hasOrigin) return results;
 
-  return results;
+  const withDistance = results.filter((office) => typeof office.distanceKm === 'number');
+  const withoutDistance = results.filter((office) => typeof office.distanceKm !== 'number');
+  withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+  const ordered = [...withDistance, ...withoutDistance];
+  return radiusKm === undefined
+    ? ordered
+    : ordered.filter((office) => typeof office.distanceKm === 'number' && office.distanceKm <= radiusKm);
 };
+
+export const searchOffices = createOfficeSearch();

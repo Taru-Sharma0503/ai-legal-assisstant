@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "node test-api.js",
+    "test:offices": "node --test tests/offices/*.test.js",
     "ingest": "node scripts/ingestKnowledge.js",
     "ingest:legal": "node scripts/ingestLegalKnowledge.js",
     "eval": "node scripts/evaluateRag.js",
@@ -16,6 +17,8 @@
     "prisma:generate": "prisma generate --schema=src/prisma/schema.prisma",
     "prisma:push": "prisma db push --schema=src/prisma/schema.prisma",
     "prisma:seed": "node src/utils/seed.js",
+    "prisma:seed:offices": "node src/utils/seed.js --offices-only",
+    "prisma:seed:offices:dry-run": "node src/utils/seed.js --offices-only --dry-run",
     "prisma:studio": "prisma studio --schema=src/prisma/schema.prisma"
   },
   "prisma": {

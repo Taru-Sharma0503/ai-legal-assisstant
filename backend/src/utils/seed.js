@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/db.js';
 import { logger } from './logger.js';
 import { INITIAL_SERVICES } from '../modules/services/service.service.js';
-import { INITIAL_OFFICES } from '../modules/offices/office.service.js';
+import { assertNonProductionDatabase, seedOfficeRecords } from './officeSeed.js';
 
 export const seedDatabase = async () => {
   if (!prisma) {
@@ -12,6 +12,7 @@ export const seedDatabase = async () => {
   }
 
   try {
+    assertNonProductionDatabase({ databaseUrl: process.env.DATABASE_URL });
     logger.info('[Seed] Seeding database...');
 
     // 1. Seed Users (Citizen, Agent, Admin)
@@ -108,41 +109,17 @@ export const seedDatabase = async () => {
       `[Seed] Seeded ${INITIAL_SERVICES.length} services with documents`
     );
 
-    // 3. Seed Offices
-    for (const office of INITIAL_OFFICES) {
-      await prisma.office.upsert({
-        where: { id: office.id },
-        update: {
-          name: office.name,
-          address: office.address,
-          city: office.city,
-          state: office.state,
-          pincode: office.pincode,
-          latitude: office.latitude,
-          longitude: office.longitude,
-          phone: office.phone,
-          workingHours: office.workingHours
-        },
-        create: {
-          id: office.id,
-          name: office.name,
-          address: office.address,
-          city: office.city,
-          state: office.state,
-          pincode: office.pincode,
-          latitude: office.latitude,
-          longitude: office.longitude,
-          phone: office.phone,
-          workingHours: office.workingHours
-        }
-      });
-    }
-
-    logger.info(`[Seed] Seeded ${INITIAL_OFFICES.length} offices`);
+    // 3. Seed verified office records and their verified service relationships.
+    await seedOfficeRecords({
+      db: prisma,
+      allowedServiceIds: INITIAL_SERVICES.map(({ id }) => id),
+      databaseUrl: process.env.DATABASE_URL
+    });
 
     logger.info('[Seed] Database seeding completed successfully.');
   } catch (error) {
     logger.error('[Seed] Database seeding error:', error.message);
+    throw error;
   } finally {
     if (prisma) {
       await prisma.$disconnect();
@@ -152,5 +129,18 @@ export const seedDatabase = async () => {
 
 // Execute if run directly from CLI
 if (process.argv[1] && process.argv[1].endsWith('seed.js')) {
-  seedDatabase();
+  const args = new Set(process.argv.slice(2));
+  if (args.has('--dry-run') && !args.has('--offices-only')) {
+    throw new Error('--dry-run requires --offices-only');
+  }
+  if (args.has('--offices-only')) {
+    seedOfficeRecords({
+      db: prisma,
+      allowedServiceIds: INITIAL_SERVICES.map(({ id }) => id),
+      databaseUrl: process.env.DATABASE_URL,
+      dryRun: args.has('--dry-run')
+    }).finally(() => prisma?.$disconnect());
+  } else {
+    seedDatabase();
+  }
 }

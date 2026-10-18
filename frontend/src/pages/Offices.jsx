@@ -6,6 +6,16 @@ import { getErrorMessage } from '../services/apiClient.js';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Loader from '../components/Loader.jsx';
 import { toList } from '../utils/helpers.js';
+import { applyDemoLocation, buildOfficeSearchParams, getDemoLocation } from '../utils/officeLocation.js';
+
+const safeHttpsUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+};
 
 export default function Offices() {
   const [searchParams] = useSearchParams();
@@ -23,29 +33,27 @@ export default function Offices() {
   const [offices, setOffices] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [locationMessage, setLocationMessage] = useState('');
+  const [searchedRadiusKm, setSearchedRadiusKm] = useState(null);
 
   const change = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const useMyLocation = () => {
-    if (!navigator.geolocation) return setError('Geolocation is not supported by your browser');
-    navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        setForm((f) => ({
-          ...f,
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
-        })),
-      () => setError('Could not get your location. Please allow location access or enter a city.')
-    );
+    setError('');
+    setLocationMessage('');
+    getDemoLocation(typeof navigator === 'undefined' ? null : navigator.geolocation)
+      .then((coords) => {
+        setForm((currentForm) => applyDemoLocation(currentForm, coords));
+        setLocationMessage('Location captured successfully. City and state are demo defaults.');
+      })
+      .catch((locationError) => setError(locationError.message));
   };
 
-  const search = async (e) => {
-    e.preventDefault();
+  const runSearch = async ({ withoutRadius = false } = {}) => {
     setLoading(true);
     setError('');
-    const params = {};
-    ['serviceId', 'city', 'state', 'latitude', 'longitude'].forEach((k) => form[k] && (params[k] = form[k]));
-    if (form.latitude && form.longitude && form.radiusKm) params.radiusKm = form.radiusKm;
+    const params = buildOfficeSearchParams(form, { withoutRadius });
+    setSearchedRadiusKm(params.radiusKm || null);
     try {
       setOffices(toList(await serviceApi.searchOffices(params)));
     } catch (err) {
@@ -55,10 +63,15 @@ export default function Offices() {
     }
   };
 
+  const search = (e) => {
+    e.preventDefault();
+    return runSearch();
+  };
+
   const mapsUrl = (o) =>
-    o.latitude && o.longitude
+    Number.isFinite(o.latitude) && Number.isFinite(o.longitude)
       ? `https://www.google.com/maps/search/?api=1&query=${o.latitude},${o.longitude}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.name} ${o.address} ${o.city}`)}`;
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.name} ${o.address || ''} ${o.city} ${o.state || ''} ${o.pincode || ''}`.trim())}`;
 
   return (
     <div className="space-y-4">
@@ -81,8 +94,18 @@ export default function Offices() {
       </form>
 
       <ErrorMessage message={error} />
+      {locationMessage && <p className="text-sm text-green-700" role="status">{locationMessage}</p>}
       {loading && <Loader />}
-      {offices && !loading && offices.length === 0 && <p className="py-8 text-center text-slate-400">No offices found.</p>}
+      {offices && !loading && offices.length === 0 && (
+        searchedRadiusKm ? (
+          <div className="space-y-2 py-8 text-center text-slate-500">
+            <p>No offices matched these filters within {searchedRadiusKm} km. Radius search requires offices with valid coordinates.</p>
+            <button type="button" className="btn-secondary" onClick={() => runSearch({ withoutRadius: true })}>
+              Search without radius
+            </button>
+          </div>
+        ) : <p className="py-8 text-center text-slate-400">No offices found.</p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {offices?.map((o) => (
@@ -91,14 +114,39 @@ export default function Offices() {
               <h3 className="font-semibold">{o.name}</h3>
               {typeof o.distanceKm === 'number' && (
                 <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                  {o.distanceKm} km
+                  {o.distanceKm} km straight-line
                 </span>
               )}
             </div>
-            <p className="text-slate-600">{o.address}, {o.city}, {o.state} - {o.pincode}</p>
+            <p className="text-slate-600">
+              {[o.address, o.city, o.state, o.pincode].filter(Boolean).join(', ')}
+            </p>
             {o.phone && <p>📞 {o.phone}</p>}
             {o.workingHours && <p>🕒 {o.workingHours}</p>}
-            <a href={mapsUrl(o)} target="_blank" rel="noreferrer" className="inline-block pt-1 text-indigo-600 underline">
+            {o.coordinateApproximate && <p className="text-xs text-slate-500">Approximate map location</p>}
+            {o.services?.length > 0 && (
+              <div className="text-slate-600">
+                <span>Services listed: </span>
+                {o.services.map((service, index) => {
+                  const sourceUrl = safeHttpsUrl(service.sourceUrl);
+                  return (
+                    <span key={`${service.id}-${index}`} className="mr-2">
+                      {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">{service.name}</a> : service.name}
+                      {index < o.services.length - 1 && ', '}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {safeHttpsUrl(o.sourceUrl) && (
+              <p className="text-xs text-slate-500">
+                <a href={safeHttpsUrl(o.sourceUrl)} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">
+                  Source checked: {o.sourceName || 'official listing'}
+                </a>
+                {o.verifiedAt && ` · verified ${new Date(o.verifiedAt).toLocaleDateString()}`}
+              </p>
+            )}
+            <a href={mapsUrl(o)} target="_blank" rel="noopener noreferrer" className="inline-block pt-1 text-indigo-600 underline">
               Open in Maps ↗
             </a>
           </div>
