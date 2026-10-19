@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger.js';
 
@@ -19,7 +20,7 @@ export const connectDb = async () => {
     // Probe database connection with a fast timeout
     const connectPromise = prisma.$connect();
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Connection timed out')), 2000)
+      setTimeout(() => reject(new Error('Connection timed out')), 5000)
     );
 
     await Promise.race([connectPromise, timeoutPromise]);

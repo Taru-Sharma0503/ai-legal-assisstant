@@ -266,6 +266,30 @@ const runTests = async () => {
     assert(withdrawAppRes.status === 200, 'PATCH /applications/:id/withdraw status 200');
     assert(withdrawAppRes.data.data.status === 'WITHDRAWN', 'PATCH /applications/:id/withdraw status WITHDRAWN');
 
+    // Verify GET application returns WITHDRAWN status
+    const getWithdrawnAppRes = await request(`/api/v1/applications/${applicationId}`, {
+      headers: { Authorization: `Bearer ${citizenToken}` }
+    });
+    assert(getWithdrawnAppRes.status === 200, 'GET /applications/:id status 200 after withdrawal');
+    assert(getWithdrawnAppRes.data.data.status === 'WITHDRAWN', 'GET /applications/:id status is WITHDRAWN after withdrawal');
+
+    // Verify second withdrawal attempt is rejected
+    const repeatWithdrawRes = await request(`/api/v1/applications/${applicationId}/withdraw`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${citizenToken}` }
+    });
+    assert(repeatWithdrawRes.status === 400, 'Repeat PATCH /applications/:id/withdraw returns 400');
+
+    // Verify querying applications with status=WITHDRAWN works
+    const listWithdrawnRes = await request(`/api/v1/applications?status=WITHDRAWN`, {
+      headers: { Authorization: `Bearer ${citizenToken}` }
+    });
+    assert(listWithdrawnRes.status === 200, 'GET /applications?status=WITHDRAWN status 200');
+    assert(
+      (listWithdrawnRes.data.data.applications || []).some(a => a.id === applicationId),
+      'Withdrawn application found in status=WITHDRAWN query'
+    );
+
 
     // 16. Create Human Escalation (Section 26)
     const createCaseRes = await request('/api/v1/escalations', {
