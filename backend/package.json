@@ -14,7 +14,7 @@
     "test:ai": "node --test \"tests/ai/*.test.js\"",
     "test:rag": "node --test tests/ai/rag.test.js",
     "prisma:generate": "prisma generate --schema=src/prisma/schema.prisma",
-    "prisma:push": "prisma db push --schema=src/prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema=src/prisma/schema.prisma --accept-data-loss",
     "prisma:seed": "node src/utils/seed.js",
     "prisma:studio": "prisma studio --schema=src/prisma/schema.prisma"
   },
