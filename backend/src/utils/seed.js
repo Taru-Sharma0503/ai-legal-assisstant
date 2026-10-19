@@ -109,7 +109,7 @@ export const seedDatabase = async () => {
       `[Seed] Seeded ${INITIAL_SERVICES.length} services with documents`
     );
 
-    // 3. Seed verified office records and their verified service relationships.
+    // 3. Seed office directory records and their categorized service relationships.
     await seedOfficeRecords({
       db: prisma,
       allowedServiceIds: INITIAL_SERVICES.map(({ id }) => id),

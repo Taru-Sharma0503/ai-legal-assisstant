@@ -11,7 +11,7 @@ const locationErrorMessage = (error) => {
   }
 };
 
-export const getDemoLocation = (geolocation) => new Promise((resolve, reject) => {
+export const getCurrentLocation = (geolocation) => new Promise((resolve, reject) => {
   if (!geolocation?.getCurrentPosition) {
     reject(new Error('Geolocation is not supported by your browser.'));
     return;
@@ -19,7 +19,8 @@ export const getDemoLocation = (geolocation) => new Promise((resolve, reject) =>
 
   geolocation.getCurrentPosition(
     ({ coords }) => {
-      if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
+      if (!Number.isFinite(coords?.latitude) || coords.latitude < -90 || coords.latitude > 90 ||
+          !Number.isFinite(coords?.longitude) || coords.longitude < -180 || coords.longitude > 180) {
         reject(new Error('Could not get valid location coordinates. Try again or enter a city manually.'));
         return;
       }
@@ -30,7 +31,7 @@ export const getDemoLocation = (geolocation) => new Promise((resolve, reject) =>
   );
 });
 
-export const applyDemoLocation = (form, coords) => ({
+export const applyCoordinates = (form, coords) => ({
   ...form,
   city: 'Ghaziabad',
   state: 'Uttar Pradesh',
@@ -41,8 +42,10 @@ export const applyDemoLocation = (form, coords) => ({
 export const buildOfficeSearchParams = (form, { withoutRadius = false } = {}) => {
   const params = {};
   ['serviceId', 'city', 'state', 'latitude', 'longitude'].forEach((key) => {
-    if (form[key]) params[key] = form[key];
+    const value = typeof form[key] === 'string' ? form[key].trim() : form[key];
+    if (value) params[key] = value;
   });
-  if (!withoutRadius && form.latitude && form.longitude && form.radiusKm) params.radiusKm = form.radiusKm;
+  const radius = typeof form.radiusKm === 'string' ? form.radiusKm.trim() : form.radiusKm;
+  if (!withoutRadius && radius) params.radiusKm = radius;
   return params;
 };

@@ -38,6 +38,7 @@ test('validates office records, PIN codes, coordinates, sources, service IDs, an
   };
   assert.ok(validateOfficeRecords([invalid], [serviceId]).length >= 4);
   assert.ok(validateOfficeRecords([baseOffice, baseOffice], [serviceId]).some((error) => error.includes('duplicated')));
+  assert.ok(validateOfficeRecords([{ ...baseOffice, services: [baseOffice.services[0], baseOffice.services[0]] }], [serviceId]).some((error) => error.includes('serviceId is duplicated')));
   assert.ok(validateOfficeRecords([{ ...baseOffice, coordinateSource: 'OpenStreetMap Nominatim', coordinateSourceUrl: 'https://nominatim.openstreetmap.org/ui/search.html', latitude: 1, longitude: 2, coordinateApproximate: false }], [serviceId]).some((error) => error.includes('marked approximate')));
   assert.ok(validateOfficeRecords([{ ...baseOffice, verifiedAt: '2026-10-19' }], [serviceId]).some((error) => error.includes('verifiedAt')));
 });
@@ -45,6 +46,39 @@ test('validates office records, PIN codes, coordinates, sources, service IDs, an
 test('curated office data validates and target city list contains exactly the requested eight cities', () => {
   assert.deepEqual(validateOfficeRecords(OFFICE_RECORDS, catalogueServiceIds), []);
   assert.deepEqual(targetCities, ['Ghaziabad', 'Delhi', 'Mumbai', 'Kolkata', 'Chennai', 'Lucknow', 'Bengaluru', 'Noida']);
+  assert.equal(OFFICE_RECORDS.length, 32);
+  assert.equal(new Set(OFFICE_RECORDS.map(({ seedKey }) => seedKey)).size, 32);
+  const cityCounts = Object.fromEntries(targetCities.map((city) => [city, OFFICE_RECORDS.filter((office) => office.city === city).length]));
+  assert.deepEqual(cityCounts, Object.fromEntries(targetCities.map((city) => [city, 4])));
+  const serviceCounts = Object.fromEntries(catalogueServiceIds.map((id) => [id, OFFICE_RECORDS.filter((office) => office.services.some((link) => link.serviceId === id)).length]));
+  assert.deepEqual(serviceCounts, Object.fromEntries(catalogueServiceIds.map((id) => [id, 8])));
+  const collectorate = OFFICE_RECORDS.find((office) => office.seedKey === 'ghaziabad-collectorate-birth');
+  assert.ok(Number.isFinite(collectorate.latitude) && collectorate.latitude >= -90 && collectorate.latitude <= 90);
+  assert.ok(Number.isFinite(collectorate.longitude) && collectorate.longitude >= -180 && collectorate.longitude <= 180);
+  assert.equal(collectorate.coordinateApproximate, true);
+  assert.match(collectorate.coordinateSourceUrl, /^https:\/\/www\.greentribunal\.gov\.in\//);
+  const ghaziabadOffices = OFFICE_RECORDS.filter((office) => office.city === 'Ghaziabad');
+  assert.equal(ghaziabadOffices.length, 4);
+  assert.ok(ghaziabadOffices.every((office) => Number.isFinite(office.latitude) && Number.isFinite(office.longitude)));
+  for (const [seedKey, latitude, longitude] of [
+    ['ghaziabad-tehsil-ghaziabad-caste', 28.696822, 77.450649],
+    ['ghaziabad-tehsil-modinagar-domicile', 28.841, 77.591],
+    ['ghaziabad-tehsil-loni-income', 28.75, 77.28]
+  ]) {
+    const office = OFFICE_RECORDS.find((record) => record.seedKey === seedKey);
+    assert.equal(office.latitude, latitude);
+    assert.equal(office.longitude, longitude);
+    assert.equal(office.coordinateApproximate, true);
+    assert.equal(office.coordinateSource, 'User-provided approximate coordinates');
+    assert.equal(office.coordinateSourceUrl, null);
+  }
+  assert.equal(OFFICE_RECORDS.filter((office) => office.latitude === null && office.longitude === null).length, 28);
+  for (const city of targetCities) {
+    const offices = OFFICE_RECORDS.filter((office) => office.city === city);
+    assert.equal(new Set(offices.map(({ name }) => name)).size, 4, `${city} office names are distinct`);
+    assert.deepEqual(new Set(offices.map((office) => office.services[0].serviceId)), new Set(catalogueServiceIds), `${city} has one office for each category`);
+  }
+  assert.ok(OFFICE_RECORDS.every((office) => office.services.length === 1 && office.services[0].verificationStatus === 'demo_assumed'));
   const noida = OFFICE_RECORDS.find((office) => office.city === 'Noida');
   assert.equal(noida.address, null);
   assert.equal(noida.phone, '7618927846');

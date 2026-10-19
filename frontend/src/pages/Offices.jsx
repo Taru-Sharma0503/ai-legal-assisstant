@@ -6,7 +6,7 @@ import { getErrorMessage } from '../services/apiClient.js';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Loader from '../components/Loader.jsx';
 import { toList } from '../utils/helpers.js';
-import { applyDemoLocation, buildOfficeSearchParams, getDemoLocation } from '../utils/officeLocation.js';
+import { applyCoordinates, buildOfficeSearchParams, getCurrentLocation } from '../utils/officeLocation.js';
 
 const safeHttpsUrl = (value) => {
   try {
@@ -28,12 +28,13 @@ export default function Offices() {
     state: '',
     latitude: '',
     longitude: '',
-    radiusKm: '10',
+    radiusKm: '',
   });
   const [offices, setOffices] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [locationMessage, setLocationMessage] = useState('');
+  const [searchMessage, setSearchMessage] = useState('');
   const [searchedRadiusKm, setSearchedRadiusKm] = useState(null);
 
   const change = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -41,10 +42,10 @@ export default function Offices() {
   const useMyLocation = () => {
     setError('');
     setLocationMessage('');
-    getDemoLocation(typeof navigator === 'undefined' ? null : navigator.geolocation)
+    getCurrentLocation(typeof navigator === 'undefined' ? null : navigator.geolocation)
       .then((coords) => {
-        setForm((currentForm) => applyDemoLocation(currentForm, coords));
-        setLocationMessage('Location captured successfully. City and state are demo defaults.');
+        setForm((currentForm) => applyCoordinates(currentForm, coords));
+        setLocationMessage('Location captured successfully.');
       })
       .catch((locationError) => setError(locationError.message));
   };
@@ -53,9 +54,19 @@ export default function Offices() {
     setLoading(true);
     setError('');
     const params = buildOfficeSearchParams(form, { withoutRadius });
+    if (!params.city && !params.state && !params.radiusKm) {
+      setOffices(null);
+      setSearchMessage('');
+      setError('Enter a city or state, or use your location and set a radius for a coordinate-based search.');
+      setLoading(false);
+      return;
+    }
     setSearchedRadiusKm(params.radiusKm || null);
+    setSearchMessage('');
     try {
-      setOffices(toList(await serviceApi.searchOffices(params)));
+      const response = await serviceApi.searchOffices(params);
+      setOffices(toList(response, 'offices'));
+      setSearchMessage(response.message || '');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -76,6 +87,7 @@ export default function Offices() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Find Offices</h1>
+      <p className="text-sm text-slate-600">Service categories organize directory results; they do not confirm that an office issues that certificate. Please confirm availability with the office.</p>
 
       <form onSubmit={search} className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <select className="input lg:col-span-2" name="serviceId" value={form.serviceId} onChange={change}>
@@ -99,13 +111,18 @@ export default function Offices() {
       {offices && !loading && offices.length === 0 && (
         searchedRadiusKm ? (
           <div className="space-y-2 py-8 text-center text-slate-500">
-            <p>No offices matched these filters within {searchedRadiusKm} km. Radius search requires offices with valid coordinates.</p>
+            <p>{searchMessage || `No offices with calculable coordinates matched these filters within ${searchedRadiusKm} km.`}</p>
             <button type="button" className="btn-secondary" onClick={() => runSearch({ withoutRadius: true })}>
               Search without radius
             </button>
           </div>
-        ) : <p className="py-8 text-center text-slate-400">No offices found.</p>
+        ) : <div className="space-y-2 py-8 text-center text-slate-500">
+          {searchMessage && <p role="status">{searchMessage}</p>}
+          <p>No offices found.</p>
+        </div>
       )}
+
+      {searchMessage && offices?.length > 0 && <p className="text-sm text-amber-800" role="status">{searchMessage}</p>}
 
       <div className="grid gap-4 md:grid-cols-2">
         {offices?.map((o) => (
