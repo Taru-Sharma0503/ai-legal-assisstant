@@ -32,7 +32,8 @@ export const applicationQuerySchema = z.object({
     'SUBMITTED',
     'UNDER_REVIEW',
     'APPROVED',
-    'REJECTED'
+    'REJECTED',
+    'WITHDRAWN'
   ]).optional(),
 
   page: z.preprocess(

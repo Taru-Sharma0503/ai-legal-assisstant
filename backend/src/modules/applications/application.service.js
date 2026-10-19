@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { prisma, isDbConnected } from '../../config/db.js';
 import { ApiError } from '../../utils/apiError.js';
+import { logger } from '../../utils/logger.js';
 import { INITIAL_SERVICES } from '../services/service.service.js';
 
 // In-memory fallback applications
@@ -396,16 +397,19 @@ export const withdrawApplication = async (userId, applicationId) => {
       });
       updated = true;
     } catch (err) {
-      // fallback
+      logger.error(`[ApplicationService] withdrawApplication DB update failed: ${err.message}`);
     }
   }
 
+  const mock = mockApplications.get(applicationId);
+  if (mock) {
+    mock.status = 'WITHDRAWN';
+    mock.updatedAt = now;
+    updated = true;
+  }
+
   if (!updated) {
-    const mock = mockApplications.get(applicationId);
-    if (mock) {
-      mock.status = 'WITHDRAWN';
-      mock.updatedAt = now;
-    }
+    throw ApiError.internal('Failed to withdraw application');
   }
 
   return {

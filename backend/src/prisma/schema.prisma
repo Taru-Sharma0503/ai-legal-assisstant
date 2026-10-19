@@ -26,6 +26,7 @@ enum ApplicationStatus {
   UNDER_REVIEW
   APPROVED
   REJECTED
+  WITHDRAWN
 }
 
 enum DocumentStatus {
