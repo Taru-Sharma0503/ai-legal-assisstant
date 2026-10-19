@@ -227,6 +227,6 @@ export const seedOfficeRecords = async ({
       }
     }
   });
-  log.info(`[Office Seed] Processed ${records.length} verified office records`);
+  log.info(`[Office Seed] Processed ${records.length} office directory records; category associations may be prototype assumptions`);
   return plan;
 };

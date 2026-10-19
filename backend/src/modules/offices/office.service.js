@@ -7,13 +7,51 @@ export const INITIAL_OFFICES = OFFICE_RECORDS;
 const supportsService = (office, serviceId) =>
   office.serviceIds?.includes(serviceId) || office.services?.some((service) => service.serviceId === serviceId);
 
+const normalizeText = (value) => typeof value === 'string' ? value.trim().toLocaleLowerCase() : '';
+
 const matchesTextFilter = (value, filter) =>
-  !filter || value?.toLocaleLowerCase().includes(filter.toLocaleLowerCase());
+  !filter || normalizeText(value) === normalizeText(filter);
 
 const matchesFallbackFilters = (office, { city, state, serviceId }) =>
   matchesTextFilter(office.city, city) &&
   matchesTextFilter(office.state, state) &&
   (!serviceId || supportsService(office, serviceId));
+
+const sameDirectoryOffice = (databaseOffice, curatedOffice) => {
+  if (databaseOffice.seedKey && curatedOffice.seedKey) return databaseOffice.seedKey === curatedOffice.seedKey;
+  const normalize = (value) => value?.trim().toLocaleLowerCase() || '';
+  return normalize(databaseOffice.name) === normalize(curatedOffice.name) &&
+    normalize(databaseOffice.city) === normalize(curatedOffice.city) &&
+    normalize(databaseOffice.state) === normalize(curatedOffice.state);
+};
+
+const sameDatabaseOffice = (first, second) => {
+  if (first.seedKey && second.seedKey) return first.seedKey === second.seedKey;
+  if (first.id && second.id && first.id === second.id) return true;
+  const normalize = (value) => value?.trim().toLocaleLowerCase() || '';
+  return Boolean(first.address && second.address) &&
+    normalize(first.name) === normalize(second.name) &&
+    normalize(first.city) === normalize(second.city) &&
+    normalize(first.state) === normalize(second.state) &&
+    normalize(first.address) === normalize(second.address);
+};
+
+const enrichMissingCoordinates = (databaseOffices, curatedOffices) => {
+  return databaseOffices.map((office) => {
+    const curated = curatedOffices.find((candidate) => sameDirectoryOffice(office, candidate));
+    if (!curated) return office;
+    const databaseHasCoordinates = isValidCoordinate(office.latitude, office.longitude);
+    if (databaseHasCoordinates || !isValidCoordinate(curated.latitude, curated.longitude)) return office;
+    return {
+      ...office,
+      latitude: curated.latitude,
+      longitude: curated.longitude,
+      coordinateSource: curated.coordinateSource,
+      coordinateSourceUrl: curated.coordinateSourceUrl,
+      coordinateApproximate: curated.coordinateApproximate === true
+    };
+  });
+};
 
 const isValidCoordinate = (latitude, longitude) =>
   Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
@@ -41,13 +79,28 @@ export const createOfficeSearch = ({
   environment = process.env.NODE_ENV,
   log = logger
 } = {}) => async ({ serviceId, city, state, latitude, longitude, radiusKm }) => {
+  const cityFilter = typeof city === 'string' ? city.trim() || undefined : city;
+  const stateFilter = typeof state === 'string' ? state.trim() || undefined : state;
+  const hasLatitude = latitude !== undefined;
+  const hasLongitude = longitude !== undefined;
+  const hasOriginInput = hasLatitude || hasLongitude;
+  const hasValidOrigin = isValidCoordinate(latitude, longitude);
+  if (hasOriginInput && !hasValidOrigin) {
+    throw new Error('Latitude and longitude must be a valid coordinate pair');
+  }
+  if (radiusKm !== undefined && (!Number.isFinite(radiusKm) || radiusKm <= 0)) {
+    throw new Error('Radius must be a finite positive number');
+  }
+  if (radiusKm !== undefined && !hasValidOrigin) {
+    throw new Error('Radius search requires valid latitude and longitude');
+  }
   let offices;
   const connected = typeof dbConnected === 'function' ? dbConnected() : dbConnected;
   if (db && connected) {
     try {
       const where = {
-        ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
-        ...(state ? { state: { contains: state, mode: 'insensitive' } } : {}),
+        ...(cityFilter ? { city: { equals: cityFilter, mode: 'insensitive' } } : {}),
+        ...(stateFilter ? { state: { equals: stateFilter, mode: 'insensitive' } } : {}),
         ...(serviceId ? { services: { some: { serviceId } } } : {})
       };
       // An empty result may mean this database has not received the curated office catalogue.
@@ -55,17 +108,21 @@ export const createOfficeSearch = ({
         where,
         include: { services: { include: { service: true } } }
       });
-      if (offices.length === 0 && environment !== 'production') {
-        const localMatches = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city, state, serviceId }));
-        if (localMatches.length > 0) {
-          log.warn('[Offices] No database matches; serving curated local office records in non-production');
-          offices = localMatches;
-        }
+      offices = offices.filter((office, index) =>
+        offices.findIndex((candidate) => sameDatabaseOffice(candidate, office)) === index);
+      const localMatches = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId }));
+      const databaseHasExpectedRecords = offices.length === localMatches.length &&
+        localMatches.every((curated) => offices.some((office) => sameDirectoryOffice(office, curated)));
+      if (environment !== 'production' && localMatches.length > 0 && !databaseHasExpectedRecords) {
+        log.warn('[Offices] Database directory is incomplete; serving the matching curated records');
+        offices = localMatches;
+      } else if (offices.length > 0) {
+        offices = enrichMissingCoordinates(offices, localMatches);
       }
     } catch (error) {
       log.error('[Offices] Database search failed:', error);
       if (environment === 'production') throw error;
-      offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city, state, serviceId }));
+      offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId }));
     }
   } else {
     if (environment === 'production') {
@@ -73,16 +130,16 @@ export const createOfficeSearch = ({
       log.error('[Offices] Database search unavailable:', error);
       throw error;
     }
-    offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city, state, serviceId }));
+    offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId }));
   }
 
-  const hasOrigin = isValidCoordinate(latitude, longitude);
+  const hasOrigin = hasValidOrigin;
   const results = offices.map((office) => {
     const distance = hasOrigin
       ? calculateHaversineDistance(latitude, longitude, office.latitude, office.longitude)
       : null;
     return {
-      id: office.id,
+      id: office.id || office.seedKey,
       name: office.name,
       address: office.address,
       city: office.city,
@@ -96,6 +153,7 @@ export const createOfficeSearch = ({
       sourceUrl: office.sourceUrl || null,
       verifiedAt: office.verifiedAt instanceof Date ? office.verifiedAt.toISOString() : office.verifiedAt || null,
       coordinateSource: office.coordinateSource || null,
+      coordinateSourceUrl: office.coordinateSourceUrl || null,
       coordinateApproximate: office.coordinateApproximate === true,
       services: (office.services || []).map((link) => ({
         id: link.service?.id || link.serviceId,
@@ -117,9 +175,13 @@ export const createOfficeSearch = ({
   const withoutDistance = results.filter((office) => typeof office.distanceKm !== 'number');
   withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
   const ordered = [...withDistance, ...withoutDistance];
-  return radiusKm === undefined
-    ? ordered
-    : ordered.filter((office) => typeof office.distanceKm === 'number' && office.distanceKm <= radiusKm);
+  if (radiusKm === undefined) {
+    Object.defineProperty(ordered, 'distanceUnavailableCount', { value: withoutDistance.length });
+    return ordered;
+  }
+  const withinRadius = ordered.filter((office) => typeof office.distanceKm === 'number' && office.distanceKm <= radiusKm);
+  Object.defineProperty(withinRadius, 'distanceUnavailableCount', { value: withoutDistance.length });
+  return withinRadius;
 };
 
 export const searchOffices = createOfficeSearch();
