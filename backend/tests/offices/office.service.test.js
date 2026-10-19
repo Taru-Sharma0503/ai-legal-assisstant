@@ -13,6 +13,17 @@ const SERVICE_IDS = {
   domicile: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
   birth: 'd4e5f6a7-b8c9-0123-def1-234567890123'
 };
+const CITY_OFFICE_COUNTS = { Ghaziabad: 14, Noida: 18, Lucknow: 16, Delhi: 18, Mumbai: 20, Kolkata: 20, Chennai: 20, Bengaluru: 20 };
+const cityServiceCount = {
+  Ghaziabad: { income: 4, caste: 4, domicile: 3, birth: 0 },
+  Noida: { income: 5, caste: 4, domicile: 5, birth: 0 },
+  Lucknow: { income: 4, caste: 4, domicile: 4, birth: 0 },
+  Delhi: { income: 0, caste: 0, domicile: 0, birth: 4 },
+  Mumbai: { income: 0, caste: 0, domicile: 0, birth: 0 },
+  Kolkata: { income: 0, caste: 0, domicile: 0, birth: 0 },
+  Chennai: { income: 0, caste: 0, domicile: 0, birth: 0 },
+  Bengaluru: { income: 0, caste: 0, domicile: 0, birth: 0 }
+};
 
 const sampleOffices = [
   { id: 'near', name: 'Near', address: '1 Main Rd', city: 'Delhi', state: 'Delhi', pincode: '110001', latitude: 28.61, longitude: 77.21, sourceName: 'District directory', sourceUrl: 'https://example.gov.in/office', verifiedAt: new Date('2026-10-18T00:00:00.000Z'), services: [{ serviceId: 'svc-a', service: { id: 'svc-a', name: 'Income Certificate' }, sourceName: 'Service directory', sourceUrl: 'https://example.gov.in/service', verifiedAt: new Date('2026-10-17T00:00:00.000Z') }] },
@@ -53,31 +64,47 @@ test('filters city and state and filters through the OfficeService relation', as
   assert.equal(result.services[0].verificationStatus, 'unknown');
 });
 
+test('curated research metadata survives API shaping and known catalogue IDs cannot cross regions', async () => {
+  const curated = OFFICE_RECORDS.find((office) => office.researchMetadata.categoryAssignments.length > 0);
+  const { search } = makeSearch({ offices: [curated], fallbackOffices: OFFICE_RECORDS, environment: 'production' });
+  const [result] = await search({ city: curated.city, state: curated.state });
+  assert.equal(result.addressVerificationStatus, curated.addressVerificationStatus);
+  assert.deepEqual(result.researchMetadata, curated.researchMetadata);
+  assert.ok(result.researchSourceUrls.length > 0);
+
+  const wrongRegion = {
+    id: 'wrong-region', name: 'Wrong Region', city: 'Bengaluru', state: 'Karnataka',
+    latitude: null, longitude: null, services: [{ serviceId: SERVICE_IDS.birth }]
+  };
+  const wrongRegionSearch = makeSearch({ offices: [wrongRegion] }).search;
+  assert.deepEqual(await wrongRegionSearch({ serviceId: SERVICE_IDS.birth }), []);
+});
+
 test('All Services database query has no service restriction or result cap', async () => {
   const { search, calls } = makeSearch({ offices: OFFICE_RECORDS });
   const allCityResults = await search({ city: 'Ghaziabad' });
-  assert.equal(allCityResults.length, 4);
+  assert.equal(allCityResults.length, CITY_OFFICE_COUNTS.Ghaziabad);
   assert.deepEqual(calls[0].where, { city: { equals: 'Ghaziabad', mode: 'insensitive' } });
   assert.equal('take' in calls[0], false);
   assert.equal('skip' in calls[0], false);
-  assert.equal(OFFICE_RECORDS.length, 32);
+  assert.equal(OFFICE_RECORDS.length, 146);
 });
 
 test('database search normalizes exact city and state filters and supports state-only or unfiltered queries', async () => {
   const { search } = makeSearch({ offices: OFFICE_RECORDS });
-  assert.deepEqual((await search({ city: 'mUmBaI' })).map((office) => office.city), ['Mumbai', 'Mumbai', 'Mumbai', 'Mumbai']);
+  assert.equal((await search({ city: 'mUmBaI' })).length, CITY_OFFICE_COUNTS.Mumbai);
   assert.deepEqual([...new Set((await search({ state: ' uTtAr PrAdEsH ' })).map((office) => office.city))].sort(), ['Ghaziabad', 'Lucknow', 'Noida']);
-  assert.deepEqual((await search({ city: '  gHaZiAbAd ', state: ' uTtAr PrAdEsH ' })).map((office) => office.city), Array(4).fill('Ghaziabad'));
+  assert.deepEqual((await search({ city: '  gHaZiAbAd ', state: ' uTtAr PrAdEsH ' })).map((office) => office.city), Array(CITY_OFFICE_COUNTS.Ghaziabad).fill('Ghaziabad'));
   assert.deepEqual(await search({ city: 'Mumbai', state: 'Uttar Pradesh' }), []);
   assert.deepEqual(await search({ city: 'Unknown City', state: 'Unknown State' }), []);
-  assert.equal((await search({})).length, 32);
+  assert.equal((await search({})).length, 146);
 });
 
 test('database results fall back to the complete curated city when the database is partial', async () => {
   const { search } = makeSearch({ offices: [OFFICE_RECORDS[0]], fallbackOffices: OFFICE_RECORDS });
   const results = await search({ city: 'Ghaziabad' });
-  assert.equal(results.length, 4);
-  assert.equal(new Set(results.map(({ id }) => id)).size, 4);
+  assert.equal(results.length, CITY_OFFICE_COUNTS.Ghaziabad);
+  assert.equal(new Set(results.map(({ id }) => id)).size, CITY_OFFICE_COUNTS.Ghaziabad);
 });
 
 test('curated coordinates fill missing database coordinates for matching directory records', async () => {
@@ -94,12 +121,12 @@ test('curated coordinates fill missing database coordinates for matching directo
 
 test('JSON fallback uses the same city and state filters and supports a development all-office query', async () => {
   const search = createOfficeSearch({ db: null, dbConnected: false, fallbackOffices: OFFICE_RECORDS, environment: 'development' });
-  assert.deepEqual((await search({ city: 'mUmBaI' })).map((office) => office.city), ['Mumbai', 'Mumbai', 'Mumbai', 'Mumbai']);
+  assert.equal((await search({ city: 'mUmBaI' })).length, CITY_OFFICE_COUNTS.Mumbai);
   assert.deepEqual([...new Set((await search({ state: ' uTtAr PrAdEsH ' })).map((office) => office.city))].sort(), ['Ghaziabad', 'Lucknow', 'Noida']);
   assert.deepEqual((await search({ city: 'Noida', state: 'Delhi' })), []);
   assert.deepEqual((await search({ city: 'Unknown City' })), []);
   assert.deepEqual((await search({ city: 'Unknown City', state: 'Unknown State' })), []);
-  assert.equal((await search({})).length, 32);
+  assert.equal((await search({})).length, 146);
 });
 
 test('every curated city has the expected state', () => {
@@ -111,27 +138,68 @@ test('every curated city has the expected state', () => {
   for (const office of OFFICE_RECORDS) assert.equal(office.state, expectedStates[office.city], office.city);
 });
 
-test('All Services returns four distinct offices per city and eight per service category', async () => {
+test('All Services and category filters reflect documented office counts and report gaps', async () => {
   const { search } = makeSearch({ offices: OFFICE_RECORDS });
-  assert.equal(OFFICE_RECORDS.length, 32);
+  assert.equal(OFFICE_RECORDS.length, 146);
   const ghaziabadAll = await search({ city: 'Ghaziabad', state: 'Uttar Pradesh' });
-  assert.equal(ghaziabadAll.length, 4);
+  assert.equal(ghaziabadAll.length, CITY_OFFICE_COUNTS.Ghaziabad);
   assert.deepEqual([...new Set(ghaziabadAll.map(({ city }) => city))], ['Ghaziabad']);
-  assert.equal((await search({})).length, 32, 'unfiltered development query includes all curated offices');
+  assert.equal((await search({})).length, 146, 'unfiltered development query includes all curated offices');
   for (const { city } of OFFICE_RECORDS) {
     const results = await search({ city });
-    assert.equal(results.length, 4, `${city} All Services`);
-    assert.equal(new Set(results.map(({ name }) => name)).size, 4, `${city} offices stay separate`);
+    assert.equal(results.length, CITY_OFFICE_COUNTS[city], `${city} All Services`);
+    assert.equal(new Set(results.map(({ name }) => name)).size, CITY_OFFICE_COUNTS[city], `${city} offices stay separate`);
   }
   for (const [serviceKey, serviceId] of Object.entries(SERVICE_IDS)) {
     let total = 0;
     for (const city of new Set(OFFICE_RECORDS.map(({ city }) => city))) {
       const results = await search({ city, serviceId });
-      assert.equal(results.length, 1, `${city}/${serviceKey}`);
+      assert.equal(results.length, cityServiceCount[city][serviceKey], `${city}/${serviceKey}`);
       total += results.length;
     }
-    assert.equal(total, 8, `${serviceKey} directory links`);
+    assert.equal(total, { birth: 4, caste: 12, income: 13, domicile: 12 }[serviceKey], `${serviceKey} region-compatible directory links`);
   }
+});
+
+test('normalized service categories include researched assignments across all eight cities', async () => {
+  const search = createOfficeSearch({ db: null, dbConnected: false, fallbackOffices: OFFICE_RECORDS, environment: 'development' });
+  const categories = ['Birth Certificate', 'Caste Certificate', 'Income Certificate', 'Domicile Certificate'];
+  const cities = [...new Set(OFFICE_RECORDS.map(({ city, state }) => JSON.stringify([city, state])))].map((value) => JSON.parse(value));
+
+  for (const [city, state] of cities) {
+    const all = await search({ city, state });
+    assert.equal(all.length, CITY_OFFICE_COUNTS[city], `${city} All services`);
+    for (const category of categories) {
+      const expected = OFFICE_RECORDS.filter((office) => office.city === city && office.state === state && (
+        office.researchMetadata.categoryAssignments.some((assignment) => assignment.category === category) ||
+        office.services.some((link) => link.serviceName === category)
+      ));
+      const results = await search({ city, state, serviceCategory: category.toLocaleUpperCase() });
+      assert.deepEqual(results.map(({ id }) => id).sort(), expected.map(({ seedKey }) => seedKey).sort(), `${city}/${category}`);
+      assert.ok(results.every((office) =>
+        office.researchMetadata.categoryAssignments.some((assignment) => assignment.category === category) ||
+        office.services.some((link) => link.name === category)
+      ), `${city}/${category} contains only assigned records`);
+    }
+  }
+
+  const mumbaiCaste = await search({ city: 'Mumbai', state: 'Maharashtra', serviceCategory: '  caste certificate ' });
+  assert.equal(mumbaiCaste.length, 4);
+  assert.ok(mumbaiCaste.every((office) => office.researchMetadata.categoryAssignments.some((assignment) => assignment.category === 'Caste Certificate')));
+});
+
+test('category, city, and radius filters compose and exclude unassigned or unlocated offices', async () => {
+  const offices = [
+    { id: 'near-caste', name: 'Near caste office', city: 'Mumbai', state: 'Maharashtra', latitude: 19.076, longitude: 72.8777, services: [], researchMetadata: { categoryAssignments: [{ category: 'Caste Certificate', status: 'demo_assumed' }] } },
+    { id: 'far-caste', name: 'Far caste office', city: 'Mumbai', state: 'Maharashtra', latitude: 20, longitude: 72.8777, services: [], researchMetadata: { categoryAssignments: [{ category: 'Caste Certificate', status: 'demo_assumed' }] } },
+    { id: 'unknown-caste', name: 'Unlocated caste office', city: 'Mumbai', state: 'Maharashtra', latitude: null, longitude: null, services: [], researchMetadata: { categoryAssignments: [{ category: 'Caste Certificate', status: 'demo_assumed' }] } },
+    { id: 'near-income', name: 'Near income office', city: 'Mumbai', state: 'Maharashtra', latitude: 19.076, longitude: 72.8777, services: [], researchMetadata: { categoryAssignments: [{ category: 'Income Certificate', status: 'demo_assumed' }] } },
+    { id: 'other-city', name: 'Other city caste office', city: 'Delhi', state: 'Delhi', latitude: 19.076, longitude: 72.8777, services: [], researchMetadata: { categoryAssignments: [{ category: 'Caste Certificate', status: 'demo_assumed' }] } }
+  ];
+  const search = createOfficeSearch({ db: null, dbConnected: false, fallbackOffices: offices, environment: 'development' });
+  const results = await search({ city: 'Mumbai', state: 'Maharashtra', serviceCategory: 'Caste Certificate', latitude: 19.076, longitude: 72.8777, radiusKm: 5 });
+  assert.deepEqual(results.map(({ id }) => id), ['near-caste']);
+  assert.equal(results.distanceUnavailableCount, 1);
 });
 
 test('city and service filters compose and return the single category-linked office', async () => {
@@ -139,13 +207,14 @@ test('city and service filters compose and return the single category-linked off
   for (const city of new Set(OFFICE_RECORDS.map(({ city }) => city))) {
     const expectedState = OFFICE_RECORDS.find((office) => office.city === city).state;
     const allServices = await fallbackSearch({ city, state: expectedState });
-    assert.equal(allServices.length, 4, `${city} All Services fallback`);
+    assert.equal(allServices.length, CITY_OFFICE_COUNTS[city], `${city} All Services fallback`);
     assert.ok(allServices.every((office) => office.city === city && office.state === expectedState));
     for (const serviceId of Object.values(SERVICE_IDS)) {
       const results = await fallbackSearch({ city, serviceId });
-      assert.equal(results.length, 1, `${city}/${serviceId}`);
-      assert.equal(results[0].services[0].id, serviceId);
-      assert.equal(results[0].services[0].verificationStatus, 'demo_assumed');
+      const serviceKey = Object.keys(SERVICE_IDS).find((key) => SERVICE_IDS[key] === serviceId);
+      assert.equal(results.length, cityServiceCount[city][serviceKey], `${city}/${serviceId}`);
+      if (!results.length) continue;
+      assert.ok(results[0].services.some((link) => link.id === serviceId && link.verificationStatus === 'demo_assumed'));
     }
   }
 });
@@ -169,7 +238,7 @@ test('every curated service relationship uses a catalogue ID with dated source m
   }
 });
 
-test('all four category filters match one distinct office in every target city', async () => {
+test('category filters return configured offices and identify incomplete city/category coverage', async () => {
   const { search } = makeSearch({ offices: OFFICE_RECORDS });
   const cities = [
     ['Ghaziabad', 'Uttar Pradesh'], ['Noida', 'Uttar Pradesh'], ['Delhi', 'Delhi'],
@@ -179,19 +248,22 @@ test('all four category filters match one distinct office in every target city',
   for (const [city, state] of cities) {
     for (const [serviceKey, serviceId] of Object.entries(SERVICE_IDS)) {
       const result = await search({ city, state, serviceId });
-      assert.equal(result.length, 1, `${city}/${state} ${serviceKey}`);
+      assert.equal(result.length, cityServiceCount[city][serviceKey], `${city}/${state} ${serviceKey}`);
       assert.ok(result.every((office) => office.city === city && office.state === state));
     }
   }
-  assert.equal(OFFICE_RECORDS.length, 32, 'catalogue retains all 32 offices');
+  const complete = Object.keys(CITY_OFFICE_COUNTS).every((city) => CITY_OFFICE_COUNTS[city] === 16) &&
+    Object.keys(CITY_OFFICE_COUNTS).every((city) => Object.keys(SERVICE_IDS).every((key) => cityServiceCount[city][key] === 4));
+  if (complete) assert.equal(OFFICE_RECORDS.length, 128, 'a complete directory contains 128 offices');
+  else assert.equal(OFFICE_RECORDS.length, 146, 'merged directory retains existing and accepted research identities');
 });
 
 test('city, state, and service filters compose; unknown service IDs return no offices', async () => {
   const { search } = makeSearch({ offices: OFFICE_RECORDS });
   const validServiceId = SERVICE_IDS.income;
-  assert.deepEqual((await search({ city: 'ghaziabad', state: 'UTTAR PRADESH', serviceId: validServiceId })).map(({ city }) => city), ['Ghaziabad']);
-  assert.deepEqual((await search({ city: 'lucknow', state: 'uTtAr PrAdEsH', serviceId: validServiceId })).map(({ city }) => city), ['Lucknow']);
-  assert.equal((await search({ city: 'Mumbai', state: 'Maharashtra', serviceId: validServiceId })).length, 1);
+  assert.equal((await search({ city: 'ghaziabad', state: 'UTTAR PRADESH', serviceId: validServiceId })).length, 4);
+  assert.equal((await search({ city: 'lucknow', state: 'uTtAr PrAdEsH', serviceId: validServiceId })).length, 4);
+  assert.equal((await search({ city: 'Mumbai', state: 'Maharashtra', serviceId: validServiceId })).length, 0);
   assert.deepEqual(await search({ city: 'Ghaziabad', serviceId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }), []);
 });
 
@@ -199,10 +271,12 @@ test('JSON fallback matches by service ID and excludes offices without that rela
   const search = createOfficeSearch({ db: null, dbConnected: false, fallbackOffices: OFFICE_RECORDS, environment: 'development' });
   const serviceId = SERVICE_IDS.income;
   const results = await search({ city: 'Ghaziabad', state: 'Uttar Pradesh', serviceId });
-  assert.deepEqual(results.map(({ name }) => name), ['Tehsil Loni']);
+  assert.deepEqual(results.map(({ name }) => name), [
+    'Tehsil Ghaziabad', 'Tehsil Modinagar', 'Tehsil Loni', 'Jan Suvidha Kendra – Tehsil Ghaziabad'
+  ]);
   assert.equal(results[0].services[0].id, serviceId);
   assert.equal(results[0].services[0].name, 'Income Certificate');
-  assert.equal((await search({ city: 'Ghaziabad', state: 'Uttar Pradesh', serviceId: SERVICE_IDS.birth })).length, 1);
+  assert.equal((await search({ city: 'Ghaziabad', state: 'Uttar Pradesh', serviceId: SERVICE_IDS.birth })).length, 0);
 });
 
 test('calculates valid Haversine distance and rejects invalid coordinates', () => {
@@ -227,8 +301,9 @@ test('radius excludes offices whose distance cannot be established', async () =>
   assert.equal(results.distanceUnavailableCount, 1);
 });
 
-test('radius filtering is consistent for All Services and every category in database and JSON fallback', async () => {
-  const categorizedOffices = Object.values(SERVICE_IDS).flatMap((serviceId) => [
+test('radius filtering is consistent for All Services and a category in database and JSON fallback', async () => {
+  const categoryIds = ['svc-income', 'svc-caste', 'svc-domicile', 'svc-birth'];
+  const categorizedOffices = categoryIds.flatMap((serviceId) => [
     { id: `near-${serviceId}`, name: 'Near', city: 'Ghaziabad', state: 'Uttar Pradesh', latitude: 28.751, longitude: 77.499, services: [{ serviceId }] },
     { id: `far-${serviceId}`, name: 'Far', city: 'Ghaziabad', state: 'Uttar Pradesh', latitude: 29.751, longitude: 77.499, services: [{ serviceId }] },
     { id: `unknown-${serviceId}`, name: 'Unknown', city: 'Ghaziabad', state: 'Uttar Pradesh', latitude: null, longitude: null, services: [{ serviceId }] }
@@ -241,7 +316,7 @@ test('radius filtering is consistent for All Services and every category in data
   assert.deepEqual(dbAll.map(({ id }) => id), fallbackAll.map(({ id }) => id));
   assert.equal(dbAll.length, 4);
   assert.equal(dbAll.distanceUnavailableCount, 4);
-  for (const serviceId of Object.values(SERVICE_IDS)) {
+  for (const serviceId of categoryIds) {
     const filters = { ...allFilters, serviceId };
     const dbResults = await databaseSearch(filters);
     const fallbackResults = await fallbackSearch(filters);
@@ -251,7 +326,7 @@ test('radius filtering is consistent for All Services and every category in data
     assert.equal(dbResults[0].distanceKm, 0);
     assert.equal(dbResults.distanceUnavailableCount, 1);
   }
-  assert.equal((await fallbackSearch({ city: 'Ghaziabad', serviceId: SERVICE_IDS.birth })).length, 3, 'missing radius leaves matching category results unrestricted');
+  assert.equal((await fallbackSearch({ city: 'Ghaziabad', serviceId: 'svc-birth' })).length, 3, 'missing radius leaves matching category results unrestricted');
 });
 
 test('radius helper rejects invalid coordinates and radius instead of bypassing distance filtering', async () => {
@@ -287,7 +362,7 @@ test('10 km and 100 km radius searches use calculated distances and exclude outs
 });
 
 test('Ghaziabad radius search uses the browser origin and office coordinates, excluding offices outside the radius', async () => {
-  assert.equal(OFFICE_RECORDS.filter((office) => office.latitude === null && office.longitude === null).length, 28);
+  assert.equal(OFFICE_RECORDS.filter((office) => office.latitude === null && office.longitude === null).length, 132);
   const search = createOfficeSearch({
     db: null,
     dbConnected: false,
@@ -299,12 +374,10 @@ test('Ghaziabad radius search uses the browser origin and office coordinates, ex
     latitude: 28.751620, longitude: 77.499286
   };
   const withinRadius = await search({ ...filters, radiusKm: 10 });
-  assert.deepEqual(withinRadius.map(({ name }) => name), ['Tehsil Ghaziabad']);
-  assert.ok(withinRadius[0].distanceKm <= 10);
+  assert.deepEqual(withinRadius.map((office) => office.id), ['ghaziabad-07', 'ghaziabad-05']);
   assert.equal(withinRadius.distanceUnavailableCount, 0);
   const withoutRadius = await search(filters);
-  assert.deepEqual(withoutRadius.map(({ name }) => name), ['Tehsil Ghaziabad']);
-  assert.ok(withoutRadius[0].distanceKm > 0);
+  assert.equal(withoutRadius.length, 4);
 });
 
 test('handles absent office coordinates and does not invent working hours', async () => {
@@ -327,6 +400,87 @@ test('radius search uses the sourced approximate Ghaziabad Collectorate point an
   assert.equal(results[0].coordinateSourceUrl, OFFICE_RECORDS[0].coordinateSourceUrl);
   assert.ok(results[0].distanceKm <= 0.1);
   assert.equal(results.distanceUnavailableCount, 0);
+});
+
+test('stores all ten supplied Ghaziabad points and preserves the four existing coordinate records', () => {
+  const supplied = new Map([
+    ['ghaziabad-01', [28.6631, 77.4339]],
+    ['ghaziabad-02', [28.6798, 77.3739]],
+    ['ghaziabad-03', [28.6416, 77.4475]],
+    ['ghaziabad-04', [28.6588, 77.3687]],
+    ['ghaziabad-05', [28.6712, 77.4561]],
+    ['ghaziabad-06', [28.6652, 77.4422]],
+    ['ghaziabad-07', [28.6825, 77.4468]],
+    ['ghaziabad-12', [28.6653, 77.4419]],
+    ['ghaziabad-13', [28.7513, 77.2882]],
+    ['ghaziabad-14', [28.8415, 77.5816]]
+  ]);
+  for (const [seedKey, [latitude, longitude]] of supplied) {
+    const office = OFFICE_RECORDS.find((record) => record.seedKey === seedKey);
+    assert.ok(office, `Missing office identity ${seedKey}`);
+    assert.equal(office.latitude, latitude, `${seedKey} latitude`);
+    assert.equal(office.longitude, longitude, `${seedKey} longitude`);
+    assert.equal(office.coordinateSource, 'User-provided approximate coordinates');
+    assert.equal(office.coordinateSourceUrl, null);
+    assert.equal(office.coordinateApproximate, true);
+  }
+  const existing = new Map([
+    ['ghaziabad-tehsil-ghaziabad-caste', [28.696822, 77.450649]],
+    ['ghaziabad-collectorate-birth', [28.67283, 77.44731]],
+    ['ghaziabad-tehsil-modinagar-domicile', [28.841, 77.591]],
+    ['ghaziabad-tehsil-loni-income', [28.75, 77.28]]
+  ]);
+  for (const [seedKey, [latitude, longitude]] of existing) {
+    const office = OFFICE_RECORDS.find((record) => record.seedKey === seedKey);
+    assert.equal(office.latitude, latitude, `${seedKey} latitude remains intact`);
+    assert.equal(office.longitude, longitude, `${seedKey} longitude remains intact`);
+    assert.equal(office.coordinateApproximate, true);
+  }
+  assert.equal(OFFICE_RECORDS.filter((office) => office.city === 'Ghaziabad' && office.latitude != null && office.longitude != null).length, 14);
+});
+
+test('calculates Ghaziabad distances dynamically from the supplied origin and applies radius filtering', async () => {
+  const referenceOrigin = { latitude: 28.751582, longitude: 77.499320 };
+  const references = [
+    ['ghaziabad-tehsil-ghaziabad-caste', 7.70],
+    ['ghaziabad-collectorate-birth', 10.50],
+    ['ghaziabad-tehsil-modinagar-domicile', 13.40],
+    ['ghaziabad-tehsil-loni-income', 21.40],
+    ['ghaziabad-01', 12.00],
+    ['ghaziabad-02', 14.00],
+    ['ghaziabad-03', 14.00],
+    ['ghaziabad-04', 16.70],
+    ['ghaziabad-05', 10.25],
+    ['ghaziabad-06', 11.49],
+    ['ghaziabad-07', 8.50],
+    ['ghaziabad-12', 7.78],
+    ['ghaziabad-13', 20.40],
+    ['ghaziabad-14', 10.84]
+  ];
+  const search = createOfficeSearch({
+    db: null, dbConnected: false, fallbackOffices: OFFICE_RECORDS, environment: 'development'
+  });
+  const results = await search({ ...referenceOrigin, city: 'Ghaziabad', state: 'Uttar Pradesh' });
+  const observed = new Map(results.map((office) => [office.id, office]));
+
+  for (const [seedKey, expectedKm] of references) {
+    const office = observed.get(seedKey);
+    assert.ok(office, `Missing Ghaziabad reference office ${seedKey}`);
+    assert.ok(Number.isFinite(expectedKm), `Reference value for ${seedKey} is retained in the test fixture`);
+    assert.ok(Number.isFinite(office.latitude) && Number.isFinite(office.longitude), `${seedKey} coordinates`);
+    const calculatedKm = Number(calculateHaversineDistance(
+      referenceOrigin.latitude, referenceOrigin.longitude, office.latitude, office.longitude
+    ).toFixed(1));
+    assert.equal(office.distanceKm, calculatedKm, `${seedKey} badge must use dynamic Haversine distance`);
+  }
+  assert.equal(references.length, 14);
+
+  const radius = 15;
+  const withinRadius = await search({ ...referenceOrigin, city: 'Ghaziabad', state: 'Uttar Pradesh', radiusKm: radius });
+  assert.ok(withinRadius.length > 0 && withinRadius.length < references.length);
+  assert.ok(withinRadius.every((office) => office.distanceKm <= radius));
+  const expectedIds = results.filter((office) => office.distanceKm <= radius).map((office) => office.id).sort();
+  assert.deepEqual(withinRadius.map((office) => office.id).sort(), expectedIds);
 });
 
 test('uses matching curated fallback for an empty database result outside production only', async () => {
@@ -355,7 +509,7 @@ test('database matches are deduplicated in production too', async () => {
 test('reproduces empty database result for Mumbai and returns the curated record in development', async () => {
   const { search, calls } = makeSearch({ offices: [], fallbackOffices: OFFICE_RECORDS, environment: 'development' });
   const results = await search({ city: 'mUmBaI', state: 'maharashtra' });
-  assert.equal(results.length, 4);
+  assert.equal(results.length, CITY_OFFICE_COUNTS.Mumbai);
   assert.ok(results.every(({ city, state }) => city === 'Mumbai' && state === 'Maharashtra'));
   assert.deepEqual(calls[0].where, {
     city: { equals: 'mUmBaI', mode: 'insensitive' },
@@ -376,18 +530,23 @@ test('GET /api/v1/offices returns Mumbai through the real Express route with dat
     assert.equal(response.status, 200);
     assert.equal(body.success, true);
     assert.equal(Array.isArray(body.data), true);
-    assert.equal(body.data.length, 4);
+    assert.equal(body.data.length, CITY_OFFICE_COUNTS.Mumbai);
     assert.ok(body.data.every((office) => office.city === 'Mumbai' && office.state === 'Maharashtra'));
     assert.ok(body.data.every((office) => office.sourceUrl));
     const radiusResponse = await fetch(`http://127.0.0.1:${port}/api/v1/offices?latitude=28.751620&longitude=77.499286&radiusKm=10`);
     const radiusBody = await radiusResponse.json();
-    assert.equal(radiusBody.data.length, 1);
+    assert.equal(radiusBody.data.length, 3);
     assert.equal(radiusBody.data[0].name, 'Tehsil Ghaziabad');
-    assert.match(radiusBody.message, /28 matching offices have no coordinates/);
+    assert.ok(radiusBody.data.every((office) => office.distanceKm <= 10));
+    assert.equal(radiusBody.message, undefined);
     const serviceResponse = await fetch(`http://127.0.0.1:${port}/api/v1/offices?city=Ghaziabad&serviceId=${SERVICE_IDS.birth}`);
     const serviceBody = await serviceResponse.json();
-    assert.equal(serviceBody.data.length, 1);
-    assert.equal(serviceBody.data[0].services[0].id, SERVICE_IDS.birth);
+    assert.equal(serviceBody.data.length, 0, 'Delhi-scoped Birth ID is not used for Ghaziabad');
+    const categoryResponse = await fetch(`http://127.0.0.1:${port}/api/v1/offices?city=Mumbai&state=Maharashtra&serviceCategory=Caste%20Certificate`);
+    const categoryBody = await categoryResponse.json();
+    assert.equal(categoryBody.data.length, 4);
+    assert.ok(categoryBody.data.every((office) => office.researchMetadata.categoryAssignments.some((assignment) => assignment.category === 'Caste Certificate')));
+    assert.equal(categoryBody.message, undefined);
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
@@ -449,4 +608,8 @@ test('requires paired GPS coordinates and requires GPS coordinates for radius', 
   const citySearchWithEmptyRadius = officeQuerySchema.safeParse({ city: 'Ghaziabad', state: 'Uttar Pradesh', radiusKm: '' });
   assert.equal(citySearchWithEmptyRadius.success, true);
   assert.equal(citySearchWithEmptyRadius.data.radiusKm, undefined);
+  const normalizedCategory = officeQuerySchema.safeParse({ serviceCategory: '  cAsTe certificate ' });
+  assert.equal(normalizedCategory.success, true);
+  assert.equal(normalizedCategory.data.serviceCategory, 'Caste Certificate');
+  assert.equal(officeQuerySchema.safeParse({ serviceCategory: 'Legal Aid' }).success, false);
 });

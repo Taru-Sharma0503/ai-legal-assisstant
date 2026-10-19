@@ -1,10 +1,15 @@
 import { z } from 'zod';
+import { OFFICE_CATEGORIES, normalizeOfficeCategory } from './officeCategory.js';
 
 const optionalNumber = (value) => value !== undefined && value !== '' ? Number(value) : undefined;
 const optionalText = (value) => typeof value === 'string' ? value.trim() || undefined : value;
 
 export const officeQuerySchema = z.object({
   serviceId: z.string().uuid('Invalid service ID format').optional(),
+  serviceCategory: z.preprocess(
+    (value) => typeof value === 'string' && value.trim() ? normalizeOfficeCategory(value) ?? value.trim() : undefined,
+    z.enum(OFFICE_CATEGORIES).optional()
+  ),
   city: z.preprocess(optionalText, z.string().optional()),
   state: z.preprocess(optionalText, z.string().optional()),
   latitude: z.preprocess(optionalNumber, z.number().finite().min(-90).max(90).optional()),

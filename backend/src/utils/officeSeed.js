@@ -9,7 +9,14 @@ const isOfficialHttpsUrl = (value) => {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    return url.protocol === 'https:' && ['.gov.in', '.nic.in', '.gov'].some((suffix) => host.endsWith(suffix));
+    const reviewedOfficialHosts = new Set([
+      'ghaziabadnagarnigam.in', 'www.ghaziabadnagarnigam.in',
+      'kmcgov.in', 'www.kmcgov.in'
+    ]);
+    return url.protocol === 'https:' && (
+      ['.gov.in', '.nic.in', '.gov'].some((suffix) => host.endsWith(suffix)) ||
+      reviewedOfficialHosts.has(host)
+    );
   } catch {
     return false;
   }

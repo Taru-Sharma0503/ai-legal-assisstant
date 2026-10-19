@@ -1,21 +1,56 @@
 import { prisma, isDbConnected } from '../../config/db.js';
 import { logger } from '../../utils/logger.js';
 import { OFFICE_RECORDS } from '../../utils/officeSeed.js';
+import { normalizeOfficeCategory } from './officeCategory.js';
 
 export const INITIAL_OFFICES = OFFICE_RECORDS;
 
+// Catalogue entries are jurisdiction-scoped. Ignore legacy links from another
+// region while retaining support for service IDs not in this built-in catalogue.
+const serviceRegionById = new Map([
+  ['a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'Uttar Pradesh'],
+  ['b2c3d4e5-f6a7-8901-bcde-f12345678901', 'Uttar Pradesh'],
+  ['c3d4e5f6-a7b8-9012-cdef-123456789012', 'Uttar Pradesh'],
+  ['d4e5f6a7-b8c9-0123-def1-234567890123', 'Delhi']
+]);
+const serviceCategoryById = new Map([
+  ['a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'Income Certificate'],
+  ['b2c3d4e5-f6a7-8901-bcde-f12345678901', 'Caste Certificate'],
+  ['c3d4e5f6-a7b8-9012-cdef-123456789012', 'Domicile Certificate'],
+  ['d4e5f6a7-b8c9-0123-def1-234567890123', 'Birth Certificate']
+]);
+
 const supportsService = (office, serviceId) =>
   office.serviceIds?.includes(serviceId) || office.services?.some((service) => service.serviceId === serviceId);
+
+const supportsCategory = (office, category) => {
+  const assignedInResearch = office.researchMetadata?.categoryAssignments?.some((assignment) =>
+    normalizeOfficeCategory(assignment.category) === category);
+  const assignedByServiceLink = office.services?.some((service) => {
+    const serviceId = service.serviceId || service.service?.id || service.id;
+    const linkCategory = normalizeOfficeCategory(service.serviceName || service.service?.name || service.name)
+      || serviceCategoryById.get(serviceId);
+    return linkCategory === category && isServiceRegionCompatible(office, serviceId);
+  });
+  return Boolean(assignedInResearch || assignedByServiceLink);
+};
 
 const normalizeText = (value) => typeof value === 'string' ? value.trim().toLocaleLowerCase() : '';
 
 const matchesTextFilter = (value, filter) =>
   !filter || normalizeText(value) === normalizeText(filter);
 
-const matchesFallbackFilters = (office, { city, state, serviceId }) =>
+const isServiceRegionCompatible = (office, serviceId) => {
+  const region = serviceRegionById.get(serviceId);
+  return !region || normalizeText(office.state) === normalizeText(region);
+};
+
+const matchesFallbackFilters = (office, { city, state, serviceId, serviceCategory }) =>
   matchesTextFilter(office.city, city) &&
   matchesTextFilter(office.state, state) &&
-  (!serviceId || supportsService(office, serviceId));
+  (serviceCategory
+    ? supportsCategory(office, serviceCategory)
+    : (!serviceId || isServiceRegionCompatible(office, serviceId)) && (!serviceId || supportsService(office, serviceId)));
 
 const sameDirectoryOffice = (databaseOffice, curatedOffice) => {
   if (databaseOffice.seedKey && curatedOffice.seedKey) return databaseOffice.seedKey === curatedOffice.seedKey;
@@ -78,7 +113,8 @@ export const createOfficeSearch = ({
   fallbackOffices = INITIAL_OFFICES,
   environment = process.env.NODE_ENV,
   log = logger
-} = {}) => async ({ serviceId, city, state, latitude, longitude, radiusKm }) => {
+} = {}) => async ({ serviceId, serviceCategory: requestedCategory, city, state, latitude, longitude, radiusKm }) => {
+  const serviceCategory = normalizeOfficeCategory(requestedCategory) || undefined;
   const cityFilter = typeof city === 'string' ? city.trim() || undefined : city;
   const stateFilter = typeof state === 'string' ? state.trim() || undefined : state;
   const hasLatitude = latitude !== undefined;
@@ -101,7 +137,7 @@ export const createOfficeSearch = ({
       const where = {
         ...(cityFilter ? { city: { equals: cityFilter, mode: 'insensitive' } } : {}),
         ...(stateFilter ? { state: { equals: stateFilter, mode: 'insensitive' } } : {}),
-        ...(serviceId ? { services: { some: { serviceId } } } : {})
+        ...(!serviceCategory && serviceId ? { services: { some: { serviceId } } } : {})
       };
       // An empty result may mean this database has not received the curated office catalogue.
       offices = await db.office.findMany({
@@ -109,8 +145,11 @@ export const createOfficeSearch = ({
         include: { services: { include: { service: true } } }
       });
       offices = offices.filter((office, index) =>
+        (serviceCategory
+          ? supportsCategory(fallbackOffices.find((candidate) => sameDirectoryOffice(office, candidate)) || office, serviceCategory)
+          : (!serviceId || isServiceRegionCompatible(office, serviceId))) &&
         offices.findIndex((candidate) => sameDatabaseOffice(candidate, office)) === index);
-      const localMatches = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId }));
+      const localMatches = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId, serviceCategory }));
       const databaseHasExpectedRecords = offices.length === localMatches.length &&
         localMatches.every((curated) => offices.some((office) => sameDirectoryOffice(office, curated)));
       if (environment !== 'production' && localMatches.length > 0 && !databaseHasExpectedRecords) {
@@ -122,7 +161,7 @@ export const createOfficeSearch = ({
     } catch (error) {
       log.error('[Offices] Database search failed:', error);
       if (environment === 'production') throw error;
-      offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId }));
+      offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId, serviceCategory }));
     }
   } else {
     if (environment === 'production') {
@@ -130,11 +169,14 @@ export const createOfficeSearch = ({
       log.error('[Offices] Database search unavailable:', error);
       throw error;
     }
-    offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId }));
+    offices = fallbackOffices.filter((office) => matchesFallbackFilters(office, { city: cityFilter, state: stateFilter, serviceId, serviceCategory }));
   }
 
   const hasOrigin = hasValidOrigin;
   const results = offices.map((office) => {
+    const curated = fallbackOffices.find((candidate) => sameDirectoryOffice(office, candidate));
+    const compatibleServices = (office.services || []).filter((link) =>
+      isServiceRegionCompatible(office, link.serviceId || link.service?.id));
     const distance = hasOrigin
       ? calculateHaversineDistance(latitude, longitude, office.latitude, office.longitude)
       : null;
@@ -155,7 +197,7 @@ export const createOfficeSearch = ({
       coordinateSource: office.coordinateSource || null,
       coordinateSourceUrl: office.coordinateSourceUrl || null,
       coordinateApproximate: office.coordinateApproximate === true,
-      services: (office.services || []).map((link) => ({
+      services: compatibleServices.map((link) => ({
         id: link.service?.id || link.serviceId,
         name: link.service?.name || link.serviceName || null,
         sourceName: link.sourceName || null,
@@ -165,6 +207,12 @@ export const createOfficeSearch = ({
         // presenting legacy database links as officially verified.
         verificationStatus: link.verificationStatus || 'unknown'
       })),
+      ...(curated?.researchMetadata ? {
+        researchMetadata: curated.researchMetadata,
+        addressVerificationStatus: curated.addressVerificationStatus,
+        researchSourceUrls: curated.researchSourceUrls,
+        researchCitySourceUrls: curated.researchCitySourceUrls
+      } : {}),
       ...(distance !== null ? { distanceKm: Number(distance.toFixed(1)) } : {})
     };
   });

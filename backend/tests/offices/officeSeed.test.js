@@ -8,6 +8,7 @@ import {
   validateOfficeRecords
 } from '../../src/utils/officeSeed.js';
 import targetCities from '../../data/offices/target-cities.json' with { type: 'json' };
+import researchImportAudit from '../../data/offices/research-import-audit.json' with { type: 'json' };
 
 const serviceId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const catalogueServiceIds = [
@@ -46,20 +47,29 @@ test('validates office records, PIN codes, coordinates, sources, service IDs, an
 test('curated office data validates and target city list contains exactly the requested eight cities', () => {
   assert.deepEqual(validateOfficeRecords(OFFICE_RECORDS, catalogueServiceIds), []);
   assert.deepEqual(targetCities, ['Ghaziabad', 'Delhi', 'Mumbai', 'Kolkata', 'Chennai', 'Lucknow', 'Bengaluru', 'Noida']);
-  assert.equal(OFFICE_RECORDS.length, 32);
-  assert.equal(new Set(OFFICE_RECORDS.map(({ seedKey }) => seedKey)).size, 32);
+  assert.equal(OFFICE_RECORDS.length, 146);
+  assert.equal(new Set(OFFICE_RECORDS.map(({ seedKey }) => seedKey)).size, 146);
+  assert.deepEqual(researchImportAudit.candidateCountsByCity, Object.fromEntries(targetCities.map((city) => [city, 16])));
+  assert.equal(researchImportAudit.sourceRows, 128);
+  assert.equal(researchImportAudit.acceptedRows, 127);
+  assert.equal(researchImportAudit.rejectedRows.length, 1);
+  assert.equal(new Set(OFFICE_RECORDS.map((office) => JSON.stringify([office.name.toLocaleLowerCase(), office.address?.toLocaleLowerCase() ?? null, office.city.toLocaleLowerCase(), office.state.toLocaleLowerCase()]))).size, OFFICE_RECORDS.length);
+  const expectedCityCounts = { Ghaziabad: 14, Noida: 18, Lucknow: 16, Delhi: 18, Mumbai: 20, Kolkata: 20, Chennai: 20, Bengaluru: 20 };
   const cityCounts = Object.fromEntries(targetCities.map((city) => [city, OFFICE_RECORDS.filter((office) => office.city === city).length]));
-  assert.deepEqual(cityCounts, Object.fromEntries(targetCities.map((city) => [city, 4])));
+  assert.deepEqual(cityCounts, expectedCityCounts);
   const serviceCounts = Object.fromEntries(catalogueServiceIds.map((id) => [id, OFFICE_RECORDS.filter((office) => office.services.some((link) => link.serviceId === id)).length]));
-  assert.deepEqual(serviceCounts, Object.fromEntries(catalogueServiceIds.map((id) => [id, 8])));
+  assert.deepEqual(serviceCounts, {
+    [catalogueServiceIds[0]]: 13, [catalogueServiceIds[1]]: 12,
+    [catalogueServiceIds[2]]: 12, [catalogueServiceIds[3]]: 4
+  });
   const collectorate = OFFICE_RECORDS.find((office) => office.seedKey === 'ghaziabad-collectorate-birth');
   assert.ok(Number.isFinite(collectorate.latitude) && collectorate.latitude >= -90 && collectorate.latitude <= 90);
   assert.ok(Number.isFinite(collectorate.longitude) && collectorate.longitude >= -180 && collectorate.longitude <= 180);
   assert.equal(collectorate.coordinateApproximate, true);
   assert.match(collectorate.coordinateSourceUrl, /^https:\/\/www\.greentribunal\.gov\.in\//);
   const ghaziabadOffices = OFFICE_RECORDS.filter((office) => office.city === 'Ghaziabad');
-  assert.equal(ghaziabadOffices.length, 4);
-  assert.ok(ghaziabadOffices.every((office) => Number.isFinite(office.latitude) && Number.isFinite(office.longitude)));
+  assert.equal(ghaziabadOffices.length, 14);
+  assert.equal(ghaziabadOffices.filter((office) => Number.isFinite(office.latitude) && Number.isFinite(office.longitude)).length, 14);
   for (const [seedKey, latitude, longitude] of [
     ['ghaziabad-tehsil-ghaziabad-caste', 28.696822, 77.450649],
     ['ghaziabad-tehsil-modinagar-domicile', 28.841, 77.591],
@@ -72,13 +82,36 @@ test('curated office data validates and target city list contains exactly the re
     assert.equal(office.coordinateSource, 'User-provided approximate coordinates');
     assert.equal(office.coordinateSourceUrl, null);
   }
-  assert.equal(OFFICE_RECORDS.filter((office) => office.latitude === null && office.longitude === null).length, 28);
+  assert.equal(OFFICE_RECORDS.filter((office) => office.latitude === null && office.longitude === null).length, 132);
+  assert.equal(OFFICE_RECORDS.filter((office) => office.latitude !== null && office.coordinateApproximate).length, 14);
+  const importedAssignments = OFFICE_RECORDS.flatMap((office) => office.researchMetadata.categoryAssignments);
+  assert.equal(importedAssignments.length, researchImportAudit.acceptedRows);
+  assert.ok(importedAssignments.every((assignment) => assignment.status === 'demo_assumed' && assignment.safeToClaimServiceIssuance === false));
+  assert.equal(new Set(OFFICE_RECORDS.flatMap((office) => office.researchMetadata.candidateIds)).size, 127);
+  assert.equal(importedAssignments.filter((assignment) => assignment.category === 'Domicile Certificate').length, 31);
+  for (const [city, expected] of Object.entries(researchImportAudit.acceptedCategoryAssignmentsByCity)) {
+    const assignments = OFFICE_RECORDS.filter((office) => office.city === city).flatMap((office) => office.researchMetadata.categoryAssignments);
+    for (const [category, count] of Object.entries(expected)) {
+      assert.equal(assignments.filter((assignment) => assignment.category === category).length, count, `${city}/${category} research tags`);
+    }
+  }
+  assert.equal(OFFICE_RECORDS.filter((office) => office.addressVerificationStatus === 'official_address').length, 101);
+  assert.equal(OFFICE_RECORDS.filter((office) => office.addressVerificationStatus === 'office_verified_address_incomplete').length, 25);
+  assert.equal(OFFICE_RECORDS.filter((office) => office.addressVerificationStatus === 'not_reassessed').length, 20);
+  const directoryComplete = false;
+  if (directoryComplete) assert.equal(OFFICE_RECORDS.length, 128);
   for (const city of targetCities) {
     const offices = OFFICE_RECORDS.filter((office) => office.city === city);
-    assert.equal(new Set(offices.map(({ name }) => name)).size, 4, `${city} office names are distinct`);
-    assert.deepEqual(new Set(offices.map((office) => office.services[0].serviceId)), new Set(catalogueServiceIds), `${city} has one office for each category`);
+    assert.equal(new Set(offices.map(({ name }) => name)).size, expectedCityCounts[city], `${city} office names are distinct`);
+    for (const id of catalogueServiceIds) {
+      const expected = {
+        Ghaziabad: [4, 4, 3, 0], Noida: [5, 4, 5, 0], Lucknow: [4, 4, 4, 0], Delhi: [0, 0, 0, 4],
+        Mumbai: [0, 0, 0, 0], Kolkata: [0, 0, 0, 0], Chennai: [0, 0, 0, 0], Bengaluru: [0, 0, 0, 0]
+      }[city][catalogueServiceIds.indexOf(id)];
+      assert.equal(offices.filter((office) => office.services.some((link) => link.serviceId === id)).length, expected, `${city}/${id} configured links`);
+    }
   }
-  assert.ok(OFFICE_RECORDS.every((office) => office.services.length === 1 && office.services[0].verificationStatus === 'demo_assumed'));
+  assert.ok(OFFICE_RECORDS.flatMap((office) => office.services).every((link) => link.verificationStatus === 'demo_assumed'));
   const noida = OFFICE_RECORDS.find((office) => office.city === 'Noida');
   assert.equal(noida.address, null);
   assert.equal(noida.phone, '7618927846');

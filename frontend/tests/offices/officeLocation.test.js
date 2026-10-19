@@ -46,9 +46,13 @@ test('location defaults produce a Ghaziabad search with actual coordinates and t
   });
 });
 
-test('Find Offices UI has no user-facing demo location wording', () => {
+test('Find Offices UI keeps category filtering without warning-style directory copy', () => {
   const source = readFileSync(new URL('../../src/pages/Offices.jsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /demo\s+(mode|location|default|behavior)/i);
+  assert.doesNotMatch(source, /\bdemo\b/i);
+  assert.match(source, /params\.serviceCategory = selectedService\.name/);
+  assert.doesNotMatch(source, /Directory categories:|Services listed:|incomplete street address|matching office.*no coordinates/i);
+  assert.doesNotMatch(source, /Showing directory entries categorized as|service authorization/i);
+  assert.match(source, /No offices found within/);
 });
 
 test('permission denial is explained and failed geolocation does not produce coordinates', async () => {
