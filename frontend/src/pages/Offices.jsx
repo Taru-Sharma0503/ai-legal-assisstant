@@ -34,7 +34,6 @@ export default function Offices() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [locationMessage, setLocationMessage] = useState('');
-  const [searchMessage, setSearchMessage] = useState('');
   const [searchedRadiusKm, setSearchedRadiusKm] = useState(null);
 
   const change = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -54,19 +53,21 @@ export default function Offices() {
     setLoading(true);
     setError('');
     const params = buildOfficeSearchParams(form, { withoutRadius });
+    const selectedService = services.find((service) => service.id === params.serviceId);
+    if (selectedService?.name) {
+      delete params.serviceId;
+      params.serviceCategory = selectedService.name;
+    }
     if (!params.city && !params.state && !params.radiusKm) {
       setOffices(null);
-      setSearchMessage('');
       setError('Enter a city or state, or use your location and set a radius for a coordinate-based search.');
       setLoading(false);
       return;
     }
     setSearchedRadiusKm(params.radiusKm || null);
-    setSearchMessage('');
     try {
       const response = await serviceApi.searchOffices(params);
       setOffices(toList(response, 'offices'));
-      setSearchMessage(response.message || '');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -87,7 +88,6 @@ export default function Offices() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Find Offices</h1>
-      <p className="text-sm text-slate-600">Service categories organize directory results; they do not confirm that an office issues that certificate. Please confirm availability with the office.</p>
 
       <form onSubmit={search} className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <select className="input lg:col-span-2" name="serviceId" value={form.serviceId} onChange={change}>
@@ -111,18 +111,16 @@ export default function Offices() {
       {offices && !loading && offices.length === 0 && (
         searchedRadiusKm ? (
           <div className="space-y-2 py-8 text-center text-slate-500">
-            <p>{searchMessage || `No offices with calculable coordinates matched these filters within ${searchedRadiusKm} km.`}</p>
+            <p>No offices found within {searchedRadiusKm} km.</p>
             <button type="button" className="btn-secondary" onClick={() => runSearch({ withoutRadius: true })}>
               Search without radius
             </button>
           </div>
         ) : <div className="space-y-2 py-8 text-center text-slate-500">
-          {searchMessage && <p role="status">{searchMessage}</p>}
           <p>No offices found.</p>
         </div>
       )}
 
-      {searchMessage && offices?.length > 0 && <p className="text-sm text-amber-800" role="status">{searchMessage}</p>}
 
       <div className="grid gap-4 md:grid-cols-2">
         {offices?.map((o) => (
@@ -139,28 +137,11 @@ export default function Offices() {
               {[o.address, o.city, o.state, o.pincode].filter(Boolean).join(', ')}
             </p>
             {o.phone && <p>📞 {o.phone}</p>}
-            {o.workingHours && <p>🕒 {o.workingHours}</p>}
-            {o.coordinateApproximate && <p className="text-xs text-slate-500">Approximate map location</p>}
-            {o.services?.length > 0 && (
-              <div className="text-slate-600">
-                <span>Services listed: </span>
-                {o.services.map((service, index) => {
-                  const sourceUrl = safeHttpsUrl(service.sourceUrl);
-                  return (
-                    <span key={`${service.id}-${index}`} className="mr-2">
-                      {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">{service.name}</a> : service.name}
-                      {index < o.services.length - 1 && ', '}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
             {safeHttpsUrl(o.sourceUrl) && (
               <p className="text-xs text-slate-500">
                 <a href={safeHttpsUrl(o.sourceUrl)} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">
-                  Source checked: {o.sourceName || 'official listing'}
+                  {o.sourceName || 'Office source'}
                 </a>
-                {o.verifiedAt && ` · verified ${new Date(o.verifiedAt).toLocaleDateString()}`}
               </p>
             )}
             <a href={mapsUrl(o)} target="_blank" rel="noopener noreferrer" className="inline-block pt-1 text-indigo-600 underline">

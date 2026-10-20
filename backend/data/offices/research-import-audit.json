@@ -1,0 +1,77 @@
+{
+  "sourceFile": "office_directory_research_128.json",
+  "sourceRows": 128,
+  "acceptedRows": 127,
+  "rejectedRows": [
+    {
+      "candidateId": "ghaziabad-15",
+      "reason": "Describes a multi-tehsil network rather than a distinct, single office location."
+    }
+  ],
+  "acceptedRowsMergedIntoExistingIdentities": 19,
+  "newOfficeIdentities": 108,
+  "uniqueAcceptedCandidateIdentities": 126,
+  "candidateRowsMergedAsDuplicateIdentity": [
+    {
+      "candidateId": "ghaziabad-16",
+      "mergedIntoSeedKey": "ghaziabad-collectorate-birth",
+      "reason": "Same District Magistrate Office / Collectorate identity and address as ghaziabad-08."
+    }
+  ],
+  "candidateCountsByCity": {
+    "Ghaziabad": 16,
+    "Noida": 16,
+    "Lucknow": 16,
+    "Delhi": 16,
+    "Mumbai": 16,
+    "Kolkata": 16,
+    "Chennai": 16,
+    "Bengaluru": 16
+  },
+  "acceptedCategoryAssignmentsByCity": {
+    "Ghaziabad": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 3 },
+    "Noida": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 },
+    "Lucknow": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 },
+    "Delhi": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 },
+    "Mumbai": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 },
+    "Kolkata": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 },
+    "Chennai": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 },
+    "Bengaluru": { "Birth Certificate": 4, "Caste Certificate": 4, "Income Certificate": 4, "Domicile Certificate": 4 }
+  },
+  "acceptedAssignmentsByCategory": {
+    "Birth Certificate": 32,
+    "Caste Certificate": 32,
+    "Income Certificate": 32,
+    "Domicile Certificate": 31
+  },
+  "finalDirectoryRecords": 146,
+  "finalDirectoryCountsByCity": {
+    "Ghaziabad": 14,
+    "Noida": 18,
+    "Lucknow": 16,
+    "Delhi": 18,
+    "Mumbai": 20,
+    "Kolkata": 20,
+    "Chennai": 20,
+    "Bengaluru": 20
+  },
+  "addressStatusCounts": {
+    "completeOfficialAddress": 101,
+    "officeIdentityWithIncompleteStreetAddress": 25,
+    "existingRecordNotReassessed": 20
+  },
+  "coordinateCounts": {
+    "recordsWithCoordinates": 4,
+    "independentlyVerifiedExactOfficeCoordinates": 0,
+    "approximateCoordinates": 4,
+    "recordsWithoutCoordinates": 142
+  },
+  "serviceAuthorizationCounts": {
+    "independentlyVerified": 0,
+    "demoAssumedCandidateAssignments": 127,
+    "regionCompatibleCandidateCatalogueLinks": 39,
+    "legacyRegionCompatibleDemoLinksOutsideResearchRows": 2,
+    "unmappedDueToCurrentCatalogueJurisdiction": 88
+  },
+  "schemaDecision": "Research provenance and demo-only category assignments are retained in curated JSON and API output. Current Prisma schema has no fields for address verification, research notes, candidate category evidence, or link verification status; no schema migration was made."
+}
