@@ -4,7 +4,9 @@ export const USER_KEY = 'user';
 export const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'hi', label: 'हिन्दी' },
+  { code: 'hinglish', label: 'Hinglish' },
 ];
+
 
 export const APPLICATION_STATUSES = [
   'DRAFT',

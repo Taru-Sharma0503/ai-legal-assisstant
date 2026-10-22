@@ -97,6 +97,12 @@ STRICT RULES:
     misleading answer. Do not reproduce a whole passage, heading, checklist,
     or process just because it appears in the context.
 
+17. When asked what to do because a required document is missing, do not infer
+    that every listed document is optional or interchangeable. State only
+    alternatives and conditions explicitly supported by the passages. If the
+    passages do not say what to do when those options are unavailable, identify
+    that gap and direct the user to an official officer.
+
 16. Match the response to the question:
     - Yes/no or confirmation: begin with a clear yes or no, then briefly state
       the verified evidence. If evidence does not support either answer, use
@@ -223,19 +229,27 @@ export async function generateWithGemini(question, language, chunks, options = {
       retryOptions: { attempts: 1 }
     }
   });
-  const prompt = SYSTEM_PROMPT + '\n\n' + buildUserMessage(question, language, chunks, options);
+  const userMessage = buildUserMessage(question, language, chunks, options);
+  const prompt = SYSTEM_PROMPT + '\n\n' + userMessage;
 
   const response = await aiClient.models.generateContent({
     model: aiConfig.gemini.model,
     contents: [prompt],
     config: {
-      temperature: 0.1
+      systemInstruction: SYSTEM_PROMPT,
+      temperature: 0.1,
+      // Disable thinking for this latency-sensitive assistant; gemini-2.5-flash enables
+      // thinking by default and may emit only thought tokens with no text output when
+      // the system prompt is embedded in `contents` or for certain multilingual inputs.
+      thinkingConfig: { thinkingBudget: 0 }
     }
   });
 
-  const rawText = response.text || "";
+  const rawText = response.text ?? "";
   if (!rawText) {
-    throw new Error("Gemini returned empty response.");
+    // Include finishReason in the error so the Groq fallback path can log it.
+    const finishReason = response.candidates?.[0]?.finishReason ?? 'UNKNOWN';
+    throw new Error(`Gemini returned empty response (finishReason: ${finishReason}).`);
   }
 
   return processResponse(rawText);

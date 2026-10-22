@@ -2,8 +2,10 @@ export const UNKNOWN_FIELD_KEYWORDS = [
   "processing time",
   "how long",
   "how many days",
+  "कितने दिन",
+  "कितना समय",
+  "कितनी देर",
   "kitne din",
-  "samay",
   "officer name",
   "phone number",
   "mobile number",
@@ -15,13 +17,13 @@ export const UNKNOWN_FIELD_KEYWORDS = [
   "collector name"
 ];
 export const UNKNOWN_FIELD_MSG = {
-  en: "This information (such as processing time, officer name, or contact details) is not available in our verified database. For exact details, please contact a human officer.",
-  hi: "यह जानकारी (जैसे प्रसंस्करण समय, अधिकारी का नाम, या संपर्क विवरण) अभी हमारे सत्यापित डेटाबेस में उपलब्ध नहीं है। सटीक जानकारी के लिए कृपया किसी मानव अधिकारी से संपर्क करें।",
-  hinglish: "Yeh information (jaise processing time, officer name, ya contact details) abhi humare verified database mein available nahi hai. Sahi details ke liye please ek human officer se contact karein."
+  en: "I don't have verified information for that specific detail. Please check the current instructions on the relevant official service portal or ask the responsible government office.",
+  hi: "?? ??????? ??????? ?? ??? ???? ??? ???????? ????? ???? ??? ??????? ?????? ???? ?????? ?? ?????? ??????? ????? ?? ????????? ?????? ???????? ?? ??????",
+  hinglish: "Mere paas is specific detail ke liye verified source nahi hai. Relevant official service portal ke current instructions check karein ya responsible government office se poochhein."
 };
 
 export const LOW_CONF_MSG = {
-  en: "I don't have enough verified information to answer this accurately. Please check with an official officer.",
-  hi: "मेरे पास इसका सटीक उत्तर देने के लिए पर्याप्त सत्यापित जानकारी नहीं है। कृपया किसी अधिकृत अधिकारी से संपर्क करें।",
-  hinglish: "Mere paas iska accurate answer dene ke liye verified info kam hai. Please official officer se check karein."
+  en: "I don't have enough verified information to answer this accurately. For official details, please visit the eDistrict UP portal (edistrict.up.gov.in) or check with a human officer.",
+  hi: "मेरे पास इसका सटीक उत्तर देने के लिए पर्याप्त सत्यापित जानकारी नहीं है। आधिकारिक जानकारी के लिए कृपया eDistrict UP पोर्टल (edistrict.up.gov.in) पर जाएं या किसी अधिकृत अधिकारी से संपर्क करें।",
+  hinglish: "Mere paas iska accurate answer dene ke liye verified info nahi hai. Official details ke liye eDistrict UP portal (edistrict.up.gov.in) check karein ya kisi officer se milein."
 };

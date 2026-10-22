@@ -154,8 +154,10 @@ async function saveKnowledgeToPostgres(
     sourceType:
       firstChunk.source_type ||
       'GOVERNMENT',
+    // Source verification is document-level provenance. Each chunk retains
+    // its own explicit verified flag in PostgreSQL and Qdrant.
     verified: chunks.length > 0 && chunks.every(
-      (chunk) => chunk.verified === true
+      (chunk) => chunk.source_verified === true
     )
   };
   await prisma.knowledgeSource.upsert({

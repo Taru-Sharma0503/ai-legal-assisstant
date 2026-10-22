@@ -15,6 +15,28 @@
   "legal_information_notice": "General legal information for public awareness, not a substitute for case-specific legal advice. Confirm the current law, applicable rules, and facts with a qualified lawyer or the relevant authority.",
   "vector_db_chunks": [
     {
+      "chunk_id": "ncrp_preserve_evidence_and_financial_fraud",
+      "text": "For an online financial cyber fraud, report promptly through the National Cyber Crime Reporting Portal or call 1930. Keep original evidence and do not delete call details, messages, emails, or recordings. The portal asks complainants to keep the incident date and time, a clear incident description, identity document, and relevant evidence ready; for financial fraud, keep the bank, wallet, or merchant name, transaction ID or UTR, transaction date, and amount. Evidence can include bank statements, transfer receipts, emails, URLs, chat transcripts, screenshots, images, videos, and suspect contact details. These are preparation steps; reporting does not guarantee that funds will be recovered or a particular police action will follow.",
+      "metadata": {
+        "service_name": "National Cyber Crime Reporting Portal",
+        "state": "Uttar Pradesh",
+        "topic": "cybercrime_financial_fraud_evidence",
+        "section": "Report and preserve evidence",
+        "doc_id": "national_cybercrime_reporting_portal",
+        "source_type": "official_government_portal",
+        "source_url": "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx",
+        "additional_source_urls": [
+          "https://cybercrime.gov.in/Webform/FAQ.aspx",
+          "https://cybercrime.gov.in/Webform/Crime_NodalGrivanceList.aspx"
+        ],
+        "department": "Indian Cyber Crime Coordination Centre, Ministry of Home Affairs, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "source_verified_by_agent",
+        "verification_note": "Facts checked against the live official National Cyber Crime Reporting Portal checklist and FAQ on 2026-10-21."
+      }
+    },
+    {
       "chunk_id": "cybercrime_portal_reporting",
       "text": "Official reporting guidance: the Government of India's National Cyber Crime Reporting Portal at cybercrime.gov.in provides an online channel for reporting cybercrime complaints and directs people affected by online financial fraud to report promptly online or call 1930. Practical steps: preserve transaction IDs, dates, messages, and relevant screenshots. If an account or payment transaction was unauthorized, promptly notify the bank or payment provider through its official fraud-reporting process. For other fraud types, contact the relevant provider through its official fraud-reporting process. Never share an OTP, password, PIN, or full payment credentials in a chat. Reporting does not guarantee recovery of funds or a particular police or provider action.",
       "metadata": {

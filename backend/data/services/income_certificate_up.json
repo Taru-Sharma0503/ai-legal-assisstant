@@ -8,15 +8,9 @@
     "issuing_authority": "Tehsildar (तहसीलदार)",
     "portal_name": "eDistrict Uttar Pradesh",
     "portal_url": "https://edistrict.up.gov.in",
-    "fee_details": {
-      "amount_inr": 30,
-      "effective_from": "2020-11-16",
-      "payment_modes": [
-        "Online Payment",
-        "CSC Facilitation"
-      ]
-    },
-    "authentication_method": "Mandatory Aadhaar e-KYC Verification (OTP-based)"
+    "verified": true,
+    "review_status": "source_verified_by_agent",
+    "verification_note": "Only individually verified authored chunks are eligible for retrieval. The official 2023 UP Revenue Department notification requires proof of Aadhaar possession or Aadhaar authentication, but does not establish OTP as the method or any fetched profile fields. The current application fee could not be verified from an authoritative current source; legacy fee and OTP claims remain unverified and have been removed from retrieval text. Checked 2026-10-22."
   },
   "income_calculation_rules": {
     "family_definition": "Includes spouse, minor children, unmarried adult children, and dependent parents living together with no independent income.",
@@ -254,17 +248,17 @@
     {
       "step_number": 2,
       "action": "Aadhaar e-KYC Trigger",
-      "details": "User inputs Aadhaar number and registered mobile number."
+      "details": "Unverified legacy detail removed; follow the current eDistrict portal instructions."
     },
     {
       "step_number": 3,
       "action": "OTP Verification",
-      "details": "User receives and submits OTP on Aadhaar-linked mobile."
+      "details": "Unverified legacy detail removed; follow the current eDistrict portal instructions."
     },
     {
       "step_number": 4,
       "action": "Data Auto-Fetch & Family ID Link",
-      "details": "System displays Aadhaar-verified Name, DOB, and Photo. Automatically retrieves Family ID from server."
+      "details": "Unverified legacy detail removed; follow the current eDistrict portal instructions."
     },
     {
       "step_number": 5,
@@ -274,7 +268,7 @@
     {
       "step_number": 6,
       "action": "Fee Payment",
-      "details": "User pays ₹30 service fee electronically."
+      "details": "Current fee is not verified in this dataset; check the amount shown on the live eDistrict UP portal before paying."
     },
     {
       "step_number": 7,
@@ -289,18 +283,58 @@
   ],
   "vector_db_chunks": [
     {
-      "chunk_id": "up_income_cert_overview",
-      "text": "Service: Income Certificate (Aay Praman Patra), Uttar Pradesh Revenue Department. Issued by Tehsildar via eDistrict UP portal (edistrict.up.gov.in). Mandatory ₹30 fee. Requires Aadhaar e-KYC OTP authentication. Valid for both Rural and Urban residents.",
+      "chunk_id": "up_income_cert_official_application_route",
+      "text": "The Government of India's services portal lists the Uttar Pradesh income certificate service as an online application for state residents and directs applicants to register before applying. Check the live eDistrict portal for current steps and requirements.",
       "metadata": {
         "service_name": "Income Certificate",
         "state": "Uttar Pradesh",
-        "section": "Overview & Fee",
-        "doc_id": "income_certificate_up"
+        "section": "Official online application route",
+        "doc_id": "income_certificate_up",
+        "source_type": "official_government_services_portal",
+        "source_url": "https://services.india.gov.in/service/state_services?ln=en&page_no=2&sd_id=3734",
+        "department": "National Government Services Portal, Government of India",
+        "language": "en",
+        "verified": true,
+        "review_status": "source_verified_by_agent",
+        "verification_note": "The state service listing identifies the online UP income certificate service and registration requirement. It does not establish fees or Aadhaar data handling. Checked 2026-10-22."
+      }
+    },
+    {
+      "chunk_id": "up_income_cert_official_documents_gbnagar",
+      "text": "The Gautam Buddha Nagar district administration's income certificate page lists a self-certified declaration, ration card photocopy, and updated payslip for salaried applicants. This is a district-specific published checklist; applicants should confirm the current checklist on the live eDistrict UP portal.",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "District-published supporting documents",
+        "doc_id": "income_certificate_up",
+        "source_type": "official_district_service_page",
+        "source_url": "https://gbnagar.nic.in/service/income-certificate/",
+        "department": "District Administration, Gautam Buddha Nagar",
+        "language": "en",
+        "verified": true,
+        "review_status": "source_verified_by_agent",
+        "verification_note": "The district page lists these supporting documents. Scope is limited to that district page; it does not establish Aadhaar-fetched details or fees. Checked 2026-10-22."
+      }
+    },
+    {
+      "chunk_id": "up_income_cert_overview",
+      "text": "Service: Income Certificate (Aay Praman Patra), Uttar Pradesh Revenue Department. The Government of India services portal lists the online UP service and registration requirement. Consult the live portal for current steps. The current fee and any OTP method are not established by the verified sources in this knowledge base.",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Overview and verified scope",
+        "doc_id": "income_certificate_up",
+        "source_type": "official_government_services_portal",
+        "source_url": "https://services.india.gov.in/service/state_services?ln=en&page_no=2&sd_id=3734",
+        "department": "National Government Services Portal, Government of India",
+        "verified": true,
+        "review_status": "source_verified_by_agent",
+        "verification_note": "Supports service listing and registration only; does not support fee or OTP claims. Checked 2026-10-22."
       }
     },
     {
       "chunk_id": "up_income_cert_checklist",
-      "text": "Required Documents for Income Certificate (UP): 1. Applicant Photo (JPEG under 50KB, auto-fetched from Aadhaar). 2. Self-Certified Declaration Form (Swapramanit Ghoshna Patra). 3. Ration Card copy or Electricity Bill (Address Proof). 4. Latest Salary Slip / Payslip (Mandatory for salaried employees).",
+      "text": "Legacy local document list retained for audit only. Its individual verification status is unset, so it is not eligible evidence. Use the separately verified district-published checklist for its limited scope.",
       "metadata": {
         "service_name": "Income Certificate",
         "state": "Uttar Pradesh",
@@ -320,12 +354,29 @@
     },
     {
       "chunk_id": "up_income_cert_procedure",
-      "text": "Application Procedure & Verification: Log into edistrict.up.gov.in. Complete Aadhaar mobile OTP authentication. Auto-fetch personal details and link Family ID. Declare annual income across categories (skilled labor, agriculture, salary, pension, private business). Upload enclosures and pay ₹30 fee. Local Lekhpal or Revenue Inspector conducts field inquiry before Tehsildar issues the certificate.",
+      "text": "Legacy procedure details retained for audit only. Its individual verification status is unset, so it is not eligible evidence. The verified government service listing supports online application and registration only.",
       "metadata": {
         "service_name": "Income Certificate",
         "state": "Uttar Pradesh",
         "section": "Application Procedure",
         "doc_id": "income_certificate_up"
+      }
+    },
+    {
+      "chunk_id": "up_income_cert_aadhaar_notification_2023",
+      "text": "Uttar Pradesh Revenue Department notification 565/1-9-2023-R-9 (18 April 2023) applies to income, caste, domicile and solvency certificates issued through eDistrict. It requires an applicant to furnish proof of possession of an Aadhaar number or undergo Aadhaar authentication. The notification does not specify OTP as the authentication method and does not state which profile fields are fetched.",
+      "metadata": {
+        "service_name": "Income Certificate",
+        "state": "Uttar Pradesh",
+        "section": "Aadhaar identity requirement",
+        "doc_id": "income_certificate_up",
+        "source_type": "official_state_gazette",
+        "source_url": "https://bor.up.nic.in/pdf/526b5a32-913b-48ad-bb7e-aa8da72df600---220523054324PM.pdf",
+        "department": "Revenue Department, Government of Uttar Pradesh",
+        "language": "en",
+        "verified": true,
+        "review_status": "source_verified_by_agent",
+        "verification_note": "Notification 565/1-9-2023-R-9 dated 2023-04-18, clause 1(1), directly states proof of Aadhaar possession or Aadhaar authentication. It does not establish OTP method or fetched fields. Checked 2026-10-22."
       }
     }
   ]

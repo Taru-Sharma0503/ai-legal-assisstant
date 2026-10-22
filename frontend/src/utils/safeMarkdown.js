@@ -15,9 +15,17 @@ export function decodeTextEntities(value) {
 }
 
 export function getVisibleVerifiedSources(sources = []) {
-  return sources.filter((source) =>
-    (source?.title || '').trim() || (source?.sourceUrl || source?.source_url || '').trim()
-  );
+  const seen = new Set();
+  return sources.filter((source) => {
+    const title = (source?.title || '').trim();
+    const url = (source?.sourceUrl || source?.source_url || '').trim();
+    if (!title && !url) return false;
+    // Canonical identity: prefer URL, fall back to title+serviceId
+    const key = url || `${source?.serviceId || source?.service_id || ''}:${title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function parseInlineMarkdown(value, allowedUrls = []) {

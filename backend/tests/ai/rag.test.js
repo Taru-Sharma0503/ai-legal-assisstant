@@ -202,7 +202,7 @@ describe('askService – similarity threshold from config', () => {
           chunk_id: 'test-chunk-income',
           state: 'Uttar Pradesh',
           topic: 'Required Documents',
-          text: 'Required Documents for Income Certificate (UP): 1. Applicant Photo. 2. Self-Certified Declaration Form.',
+          text: 'Required Documents for Income Certificate (UP): Applicant Photo.',
           verified: true,
           language: 'en',
           source_ref: 'up_income_cert_checklist',
@@ -310,7 +310,7 @@ describe('retrieve – RAG_ALLOW_LOCAL_FALLBACK=false', () => {
       _setEmbedClient(null);
     }
   });
-  it('local fallback returns reviewed legal evidence and excludes certificate files with unknown verification status', async () => {
+  it('local fallback returns reviewed legal evidence and only explicitly verified certificate chunks', async () => {
     const origFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
     process.env.RAG_ALLOW_LOCAL_FALLBACK = 'true';
     try {
@@ -320,7 +320,9 @@ describe('retrieve – RAG_ALLOW_LOCAL_FALLBACK=false', () => {
         assert.ok(legal.chunks.every((chunk) => chunk.verified === true && chunk.knowledge_domain === 'legal_rights'));
 
         const certificate = await retrieve('income certificate documents', 'Uttar Pradesh');
-        assert.deepEqual(certificate.chunks, [], 'Certificate JSON files without an explicit verified flag must not be returned');
+        assert.ok(certificate.chunks.length > 0, 'The source-verified checklist should be available');
+        assert.ok(certificate.chunks.every((chunk) => chunk.verified === true));
+        assert.ok(certificate.chunks.every((chunk) => chunk.id.startsWith('up_income_cert_official_') || chunk.id === 'up_income_cert_aadhaar_notification_2023' || chunk.id === 'up_income_cert_overview'));
       });
     } finally {
       if (origFallback !== undefined) process.env.RAG_ALLOW_LOCAL_FALLBACK = origFallback;
@@ -498,7 +500,7 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
           chunk_id: 'test-chunk-income',
           state: 'Uttar Pradesh',
           topic: 'Required Documents',
-          text: 'Required Documents for Income Certificate (UP): 1. Applicant Photo.',
+          text: 'Required Documents for Income Certificate (UP): Applicant Photo.',
           verified: true,
           language: 'en',
           source_ref: 'up_income_cert_checklist',
@@ -566,7 +568,7 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
           chunk_id: 'test-chunk-income',
           state: 'Uttar Pradesh',
           topic: 'Required Documents',
-          text: 'Required Documents for Income Certificate (UP): 1. Applicant Photo.',
+          text: 'Required Documents for Income Certificate (UP): Applicant Photo.',
           verified: true,
           language: 'en',
           source_ref: 'up_income_cert_checklist',
@@ -611,7 +613,7 @@ describe('Provider fallback logic – real functions with mocked clients', () =>
 // 10. askService end-to-end in-scope vs out-of-scope (real retrieve, skipLlm)
 // ─────────────────────────────────────────────────────────────────────────
 describe('askService – end-to-end in-scope vs out-of-scope', () => {
-  it('does not answer a certificate question from chunks lacking explicit verification', async () => {
+  it('answers the income certificate document question only from explicit source-verified chunks', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
     const res = await withOfflineRetrieval(() => askService({
       question: 'What documents are required for an income certificate in UP?',
@@ -619,9 +621,10 @@ describe('askService – end-to-end in-scope vs out-of-scope', () => {
       skipLlm: true
     }));
     assert.equal(res.suggested_service_id, 'up_income_certificate');
-    assert.equal(res.needs_human, true);
-    assert.equal(res.guard_reason, 'no_chunks');
-    assert.equal(res.generation_status, 'fallback');
+    assert.equal(res.needs_human, false);
+    assert.ok(res.sources.length > 0);
+    assert.ok(res.sources.every((source) => source.id.startsWith('up_income_cert_official_')));
+    assert.ok(res.sources.some((source) => source.source_url === 'https://gbnagar.nic.in/service/income-certificate/'));
   });
   it('evaluates out-of-scope question with needs_human=true and suggested_service_id=null', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
@@ -641,7 +644,7 @@ describe('askService – end-to-end in-scope vs out-of-scope', () => {
       else delete process.env.SIMILARITY_THRESHOLD;
     }
   });
-  it('routes caste certificate questions but does not answer from unverified chunks', async () => {
+  it('routes caste document questions to the source-verified official checklist', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
     const res = await withOfflineRetrieval(() => askService({
       question: 'What documents are needed for a caste certificate?',
@@ -649,8 +652,65 @@ describe('askService – end-to-end in-scope vs out-of-scope', () => {
       skipLlm: true
     }));
     assert.equal(res.suggested_service_id, 'up_caste_certificate');
-    assert.equal(res.needs_human, true);
-    assert.equal(res.guard_reason, 'no_chunks');
+    assert.equal(res.needs_human, false);
+    assert.ok(res.sources.some((source) => (source.source_url || source.url || '').includes('chandauli.nic.in')));
+  });
+  it('answers caste category scope only from the official government service listing', async () => {
+    const { askService } = await import('../../src/modules/ai/ai.service.js');
+    const res = await withOfflineRetrieval(() => askService({
+      question: 'Which categories of people are eligible for a caste certificate in Uttar Pradesh?',
+      language: 'en',
+      skipLlm: true
+    }));
+    assert.equal(res.suggested_service_id, 'up_caste_certificate');
+    assert.equal(res.needs_human, false);
+    assert.ok(res.sources.some((source) => source.id === 'up_caste_cert_official_category_eligibility'));
+    assert.ok(res.sources.some((source) => source.source_url.includes('services.india.gov.in')));
+  });
+  it('filters a caste recommendation follow-up by the latest question, not the prior eligibility turn', async () => {
+    const { askService } = await import('../../src/modules/ai/ai.service.js');
+    const res = await withOfflineRetrieval(() => askService({
+      question: 'Is a recommendation from a Gram Pradhan or ward member accepted as caste proof?',
+      retrievalQuestion: 'Which categories of people are eligible for a caste certificate in Uttar Pradesh? Follow-up: Is a recommendation from a Gram Pradhan or ward member accepted as caste proof?',
+      language: 'en',
+      skipLlm: true
+    }));
+    assert.equal(res.suggested_service_id, 'up_caste_certificate');
+    assert.equal(res.needs_human, false);
+    assert.ok(res.sources.some((source) => source.id === 'up_caste_cert_official_documents'));
+    assert.ok(res.sources.every((source) => source.id !== 'up_caste_cert_official_category_eligibility'));
+    assert.ok(res.sources.some((source) => source.source_url.includes('chandauli.nic.in')));
+  });
+  it('uses current India Code authority for birth registration delayed beyond one year in all languages', async () => {
+    const { askService } = await import('../../src/modules/ai/ai.service.js');
+    const questions = [
+      { question: 'If birth registration is delayed by more than one year, whose order is required?', language: 'en' },
+      { question: 'Agar janm registration mein ek saal se zyada der ho, kis adhikari ka order chahiye?', language: 'hinglish' },
+      { question: 'यदि जन्म पंजीकरण में एक वर्ष से अधिक की देरी हो जाए, तो किस अधिकारी के आदेश की ज़रूरत होती है?', language: 'hi' }
+    ];
+    for (const input of questions) {
+      const res = await withOfflineRetrieval(() => askService({ ...input, skipLlm: true }));
+      assert.equal(res.suggested_service_id, 'up_birth_certificate', input.question);
+      assert.equal(res.needs_human, false, input.question);
+      assert.ok(res.sources.some((source) => source.id === 'up_birth_registration_delay_more_than_year'), input.question);
+      assert.ok(res.sources.some((source) => source.source_url.includes('indiacode.nic.in')), input.question);
+    }
+  });
+  it('answers guarantee-of-recovery questions only from the verified no-guarantee passage', async () => {
+    const { askService } = await import('../../src/modules/ai/ai.service.js');
+    const questions = [
+      { question: 'Can you guarantee that I will get my money back if I report the online scam?', language: 'en' },
+      { question: 'Agar main online scam report karun toh kya paise wapas milne ki guarantee hai?', language: 'hinglish' },
+      { question: 'यदि मैं ऑनलाइन धोखाधड़ी की शिकायत करूँ, तो क्या पैसे वापस मिलने की गारंटी है?', language: 'hi' }
+    ];
+    for (const input of questions) {
+      const res = await withOfflineRetrieval(() => askService(input));
+      assert.equal(res.guard_reason, 'verified_no_recovery_guarantee', input.question);
+      assert.equal(res.generation_status, 'grounded_guardrail', input.question);
+      assert.match(res.answer, /guarantee|गारंटी/i, input.question);
+      assert.ok(res.sources.some((source) => ['cybercrime_portal_reporting', 'ncrp_preserve_evidence_and_financial_fraud'].includes(source.id)), input.question);
+      assert.ok(res.sources.every((source) => source.source_url.startsWith('https://cybercrime.gov.in/')), input.question);
+    }
   });
   it('routes marriage certificate questions but does not answer from unverified chunks', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
@@ -711,7 +771,7 @@ describe('Regression: Caste documents context-faithful answer', () => {
       );
     }
   });
-  it('identifies the caste certificate service but escalates while local evidence is unverified', async () => {
+  it('identifies the caste certificate service and answers from the verified document checklist', async () => {
     const { askService } = await import('../../src/modules/ai/ai.service.js');
     const res = await withOfflineRetrieval(() => askService({
       question: 'What documents are needed for a caste certificate?',
@@ -719,8 +779,8 @@ describe('Regression: Caste documents context-faithful answer', () => {
       skipLlm: true
     }));
     assert.equal(res.suggested_service_id, 'up_caste_certificate');
-    assert.equal(res.needs_human, true);
-    assert.equal(res.guard_reason, 'no_chunks');
+    assert.equal(res.needs_human, false);
+    assert.ok(res.sources.some((source) => (source.source_url || source.url || '').includes('chandauli.nic.in')));
   });
 });
 
@@ -728,11 +788,76 @@ describe('Regression: Caste documents context-faithful answer', () => {
 // 12. Source Metadata Propagation & Deduplication
 // ─────────────────────────────────────────────────────────────────────────
 describe('Source Metadata Propagation & Formatting', () => {
-  it('buildSources includes source id, title, source_url, department and deduplicates by source_id', async () => {
+  it('buildSources deduplicates chunks sharing the same service_id + source_url into a single entry', async () => {
     const { buildSources } = await import('../../src/modules/ai/rag.service.js');
     const mockChunks = [
       {
-        source_id: 'src-uuid-1111',
+        id: 'up_income_cert_overview',   // unique chunk id
+        service_id: 'up_income_certificate',
+        title: 'Income Certificate',
+        source_url: 'https://edistrict.up.gov.in',
+        department: 'Revenue Department',
+        topic: 'overview'
+      },
+      {
+        id: 'up_income_cert_documents',  // different chunk id, same URL
+        service_id: 'up_income_certificate',
+        title: 'Income Certificate',
+        source_url: 'https://edistrict.up.gov.in',
+        department: 'Revenue Department',
+        topic: 'documents'
+      },
+      {
+        id: 'up_income_cert_fees',       // different chunk id, same URL
+        service_id: 'up_income_certificate',
+        title: 'Income Certificate',
+        source_url: 'https://edistrict.up.gov.in',
+        department: 'Revenue Department',
+        topic: 'fees'
+      }
+    ];
+
+    const sources = buildSources(mockChunks);
+    // All 3 chunks share the same service + URL → must collapse to 1 source
+    assert.equal(sources.length, 1, 'Three chunks from the same URL must produce exactly one source entry');
+    assert.equal(sources[0].title, 'Income Certificate');
+    assert.equal(sources[0].source_url, 'https://edistrict.up.gov.in');
+    assert.equal(sources[0].department, 'Revenue Department');
+  });
+
+  it('buildSources – regression: 5 Birth Certificate chunks with same URL produce 1 source (not 5)', async () => {
+    const { buildSources } = await import('../../src/modules/ai/rag.service.js');
+    // Mirrors the actual chunks from birth_certificate_up.json (all same portal URL)
+    const birthChunks = [
+      'up_birth_cert_overview',
+      'up_birth_cert_documents',
+      'up_birth_cert_fees',
+      'up_birth_cert_offline',
+      'up_birth_cert_online'
+    ].map((chunkId, i) => ({
+      id: chunkId,
+      service_id: 'up_birth_certificate',
+      title: 'Birth Certificate',
+      source_url: 'https://edistrict.up.gov.in',
+      topic: ['overview', 'documents', 'fees', 'offline', 'online'][i],
+      score: 0.9 - i * 0.05
+    }));
+
+    const sources = buildSources(birthChunks);
+    assert.equal(
+      sources.length, 1,
+      `Expected 1 deduplicated source for Birth Certificate but got ${sources.length}. ` +
+      'This is the duplicate-Verified-Sources regression.'
+    );
+    assert.equal(sources[0].title, 'Birth Certificate');
+    assert.equal(sources[0].source_url, 'https://edistrict.up.gov.in');
+  });
+
+  it('buildSources keeps genuinely distinct source URLs as separate entries', async () => {
+    const { buildSources } = await import('../../src/modules/ai/rag.service.js');
+    const mockChunks = [
+      {
+        id: 'chunk-a',
         service_id: 'up_income_certificate',
         title: 'Income Certificate Guide',
         source_url: 'https://edistrict.up.gov.in/income',
@@ -740,15 +865,7 @@ describe('Source Metadata Propagation & Formatting', () => {
         topic: 'documents'
       },
       {
-        source_id: 'src-uuid-1111', // duplicate source_id
-        service_id: 'up_income_certificate',
-        title: 'Income Certificate Guide',
-        source_url: 'https://edistrict.up.gov.in/income',
-        department: 'Revenue Department',
-        topic: 'eligibility'
-      },
-      {
-        source_id: 'src-uuid-2222',
+        id: 'chunk-b',
         service_id: 'up_income_certificate',
         title: 'UP Portal Terms',
         source_url: 'https://edistrict.up.gov.in/terms',
@@ -758,12 +875,20 @@ describe('Source Metadata Propagation & Formatting', () => {
     ];
 
     const sources = buildSources(mockChunks);
-    assert.equal(sources.length, 2, 'Must deduplicate chunks with identical source_id');
-    assert.equal(sources[0].id, 'src-uuid-1111');
-    assert.equal(sources[0].title, 'Income Certificate Guide');
+    assert.equal(sources.length, 2, 'Two distinct source URLs must remain as two separate entries');
     assert.equal(sources[0].source_url, 'https://edistrict.up.gov.in/income');
-    assert.equal(sources[0].department, 'Revenue Department');
-    assert.equal(sources[1].id, 'src-uuid-2222');
+    assert.equal(sources[1].source_url, 'https://edistrict.up.gov.in/terms');
+  });
+
+  it('buildSources falls back to source_ref key when no source_url is present', async () => {
+    const { buildSources } = await import('../../src/modules/ai/rag.service.js');
+    const chunks = [
+      { id: 'chunk-1', source_ref: 'legal_doc_a', service_id: 'legal', title: 'Legal Doc A', source_url: '', topic: 'rights' },
+      { id: 'chunk-2', source_ref: 'legal_doc_a', service_id: 'legal', title: 'Legal Doc A', source_url: '', topic: 'remedies' }, // same ref
+      { id: 'chunk-3', source_ref: 'legal_doc_b', service_id: 'legal', title: 'Legal Doc B', source_url: '', topic: 'procedure' } // different ref
+    ];
+    const sources = buildSources(chunks);
+    assert.equal(sources.length, 2, 'Same source_ref without URL deduplicates; different source_ref stays separate');
   });
 
   it('formattedSources in ai.service mapping returns non-empty id and sourceUrl from source_url', async () => {
