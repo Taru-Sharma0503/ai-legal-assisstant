@@ -1,14 +1,33 @@
+/**
+ * language.js
+ *
+ * Detects whether a query is in English, Hindi (Devanagari) or Hinglish (Roman-script Hindi).
+ * The detection is intentionally simple and heuristic-based; it is used only to select
+ * the language for the LLM's answer — not for routing or retrieval.
+ */
 const HINGLISH_WORDS = new Set([
+  // Personal pronouns / deixis
   "mujhe", "mere", "mera", "meri", "hum", "aap", "tum",
+  // Question words
   "kya", "kaise", "kab", "kaun", "kahan", "kyun", "kyunki",
+  // Auxiliaries / verbs
   "hai", "hain", "ho", "tha", "thi", "the", "kar", "karo", "karna",
   "chahiye", "chahie", "lagta", "lagti", "milta", "milti", "milega",
-  "bana", "banao", "banana", "banani", "banane",
-  "praman", "patra", "avedan", "dastaavet", "dastaavez", "shulk",
-  "aadhaar", "aadhar", "jati", "niwas", "aay",
+  // Certificate / document getting
+  "bana", "banao", "banana", "banani", "banane", "bnwane", "banwana", "banwane",
+  // Government / admin
+  "praman", "patra", "avedan", "aavedan", "dastaavet", "dastavez", "shulk",
+  "aadhaar", "aadhar", "jati", "jaat", "jaati", "niwas", "nivas", "aay",
+  "janm", "janam", "mrityu", "vivah", "shaadi", "shadi",
+  "divyang", "viklang", "charitra", "ews",
+  // Prepositions / conjunctions / fillers
   "aur", "ya", "lekin", "par", "se", "ke", "ki", "ko", "ne", "mein",
   "ka", "wala", "wali", "bhai", "yaar", "bata", "batao", "please", "koi",
-  "bnwane", "chahiy"
+  "bnwane", "chahiy",
+  // Fee / cost
+  "kitna", "kitni", "paisa", "paise", "lagta", "lagti",
+  // Informal phrasing
+  "karna", "karunga", "milega", "milegi", "chahta", "chahti"
 ]);
 
 export function detectLanguage(text) {

@@ -56,6 +56,10 @@ function baseProps(meta, fileName) {
     state: meta.state,
     source_type: meta.source_type,
     source_ref: fileName || meta.service_id,
+    // Preserve the service document's explicit provenance approval separately
+    // from per-chunk approval. A single unverified legacy chunk must not mark
+    // every individually verified chunk's source as unverified.
+    source_verified: meta.verified === true,
     department: meta.department,
     source_url: meta.source_url,
     verified: meta.verified

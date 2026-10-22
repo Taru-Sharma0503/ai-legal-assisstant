@@ -5,7 +5,7 @@ const sourceRows = [
   {
     id: 'income-process', sourceId: 'income-source', serviceId: 'up_income_certificate',
     section: 'Application Process', language: 'en', region: 'Uttar Pradesh', verified: true,
-    text: 'Income Certificate: apply through the eDistrict UP portal, complete Aadhaar e-KYC, attach the required documents, pay ₹30, and submit for processing.',
+    text: 'Income Certificate: the Government services portal lists the online application service and requires registration before applying.',
     source: { id: 'income-source', title: 'Income Certificate', sourceUrl: 'https://edistrict.up.gov.in/income', department: 'Revenue Department', sourceType: 'official_portal', verified: true }
   },
   {
@@ -31,7 +31,7 @@ function installRetrieval({ unavailableService = null } = {}) {
     return sourceRows.filter((row) => row.serviceId === serviceId).map((row) => ({
       id: row.id,
       score: row.serviceId === 'up_income_certificate' ? 0.91 : 0.88,
-      payload: { chunk_id: row.id, source_id: row.sourceId, service_id: row.serviceId, source_ref: row.id }
+      payload: { chunk_id: row.id, source_id: row.sourceId, service_id: row.serviceId, source_ref: row.id, state: row.region, verified: true }
     }));
   } });
   rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => sourceRows
@@ -93,7 +93,7 @@ test('comparison independently retrieves both named services and passes both ver
     const prompt = getPrompt();
     assert.match(prompt, /service_id: up_income_certificate/);
     assert.match(prompt, /service_id: up_caste_certificate/);
-    assert.match(prompt, /Income Certificate: apply through the eDistrict UP portal/);
+    assert.match(prompt, /Income Certificate: the Government services portal lists the online application service and requires registration/);
     assert.match(prompt, /Caste Certificate: apply through the eDistrict UP portal/);
     assert.deepEqual(result.sources.map((source) => source.service_id), ['up_income_certificate', 'up_caste_certificate']);
     assert.deepEqual(result.sources.map((source) => source.source_url), [

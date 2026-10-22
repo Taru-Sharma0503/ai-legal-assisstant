@@ -14,7 +14,10 @@ function setupRetrievalMocks() {
         chunk_id: CHUNK_ID,
         source_id: SOURCE_ID,
         service_id: 'up_income_certificate',
-        source_ref: CHUNK_ID
+        source_ref: CHUNK_ID,
+        verified: true,
+        state: 'Uttar Pradesh',
+        text: 'Income Certificate requires an applicant photo.'
       }
     }]
   };
@@ -194,10 +197,11 @@ describe('generation provider routing', () => {
         const latest = 'Is Aadhaar verification mentioned in the income-certificate process?';
         const retrieval = 'Which documents are listed for an income certificate? ' + latest;
         const result = await askService({ question: latest, retrievalQuestion: retrieval, language: 'en' });
-        assert.equal(result.answer, answer);
-        assert.match(prompt, /Give a direct yes\/no answer first/i);
-        assert.ok(prompt.includes(latest));
-        assert.ok(!prompt.includes('Which documents are listed'));
+        assert.equal(result.needs_human, true);
+        assert.equal(result.guard_reason, 'no_chunks');
+        assert.deepEqual(result.sources, []);
+        assert.doesNotMatch(result.answer, /OTP (?:is )?required/i);
+        assert.equal(prompt, '', 'unsupported legacy evidence must not reach generation');
         assert.equal(mocks.retrievalQueries.at(-1), retrieval);
       } finally {
         mocks.reset();
@@ -240,11 +244,10 @@ describe('generation provider routing', () => {
           question: 'Is Aadhaar verification mentioned in the income-certificate process?'
         });
         assert.match(first.answer, /Passport Size Photograph.*Self-Certified Declaration Form.*income proof/);
-        assert.match(followup.answer, /^Yes\b.*Aadhaar mobile OTP authentication \(e-KYC\)/);
-        assert.ok(!followup.answer.includes('Passport Size Photograph'));
-        assert.match(prompts[1], /Give a direct yes\/no answer first/i);
-        assert.ok(prompts[1].includes('User question: Is Aadhaar verification mentioned in the income-certificate process?'));
-        assert.ok(!prompts[1].includes('User question: Which documents are listed'));
+        assert.equal(followup.needsHuman, true);
+        assert.deepEqual(followup.sources, []);
+        assert.doesNotMatch(followup.answer, /OTP (?:is )?required/i);
+        assert.equal(prompts.length, 1, 'follow-up without eligible Aadhaar evidence must not reach generation');
         assert.equal(mocks.retrievalQueries[1], 'Which documents are listed for an income certificate?. Is Aadhaar verification mentioned in the income-certificate process?');
       } finally {
         mocks.reset();
@@ -383,7 +386,7 @@ describe('generation provider routing', () => {
       assert.equal(geminiCalls, 1);
       assert.equal(groqCalls, 1);
       assert.equal(result.generation_status, 'fallback');
-      assert.equal(result.needs_human, false);
+      assert.equal(result.needs_human, true);
       assert.match(result.answer, /Income Certificate requires an applicant photo/);
       assert.equal(result.sources[0].source_url, 'https://edistrict.up.gov.in');
     } finally {
@@ -421,6 +424,81 @@ describe('generation provider routing', () => {
       await askIncomeCertificate();
       assert.equal(geminiCalls, 1);
       assert.equal(groqCalls, 2);
+    } finally {
+      mocks.reset();
+      if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = originalProvider;
+      if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
+      else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
+    }
+  });
+
+  it('passes exact Hinglish language prompt instructions to LLM provider (Gemini & Groq)', async () => {
+    const originalProvider = process.env.LLM_PROVIDER;
+    const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+
+    for (const provider of ['gemini', 'groq']) {
+      process.env.LLM_PROVIDER = provider;
+      let capturedPrompt = '';
+      const mocks = await installMocks({
+        gemini: { models: { generateContent: async ({ contents }) => {
+          capturedPrompt = contents[0];
+          return { text: 'Aapko income certificate ke liye photo chahiye.' };
+        } } },
+        groq: { chat: { completions: { create: async ({ messages }) => {
+          capturedPrompt = messages[1].content;
+          return { choices: [{ message: { content: 'Aapko income certificate ke liye photo chahiye.' } }] };
+        } } } }
+      });
+
+      try {
+        const { askService } = await import('../../src/modules/ai/ai.service.js');
+        const res = await askService({
+          question: 'What documents are required for income certificate?',
+          language: 'hinglish'
+        });
+
+        assert.equal(res.language_used, 'hinglish');
+        assert.equal(res.answer, 'Aapko income certificate ke liye photo chahiye.');
+        assert.match(capturedPrompt, /OUTPUT LANGUAGE: HINGLISH ONLY/);
+        assert.match(capturedPrompt, /Roman\/Latin script/);
+        assert.match(capturedPrompt, /Do NOT use Devanagari script/);
+      } finally {
+        mocks.reset();
+      }
+    }
+
+    if (originalProvider === undefined) delete process.env.LLM_PROVIDER;
+    else process.env.LLM_PROVIDER = originalProvider;
+    if (originalFallback === undefined) delete process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    else process.env.RAG_ALLOW_LOCAL_FALLBACK = originalFallback;
+  });
+
+  it('uses Roman Hindi in fallback path when language is hinglish and providers fail', async () => {
+    const originalProvider = process.env.LLM_PROVIDER;
+    const originalFallback = process.env.RAG_ALLOW_LOCAL_FALLBACK;
+    process.env.LLM_PROVIDER = 'auto';
+    process.env.RAG_ALLOW_LOCAL_FALLBACK = 'false';
+
+    const mocks = await installMocks({
+      gemini: { models: { generateContent: async () => { throw new Error('Gemini offline'); } } },
+      groq: { chat: { completions: { create: async () => { throw new Error('Groq offline'); } } } }
+    });
+
+    try {
+      const { askService } = await import('../../src/modules/ai/ai.service.js');
+      const res = await askService({
+        question: 'What documents are required for an income certificate in UP?',
+        language: 'hinglish'
+      });
+
+      assert.equal(res.generation_status, 'fallback');
+      assert.ok(['groq_generation_failed', 'all_generation_providers_failed'].includes(res.generation_fallback_reason));
+      assert.equal(res.language_used, 'hinglish');
+      assert.match(res.answer, /Automatic answer generate nahi ho saka/);
+      assert.equal(res.needs_human, true);
+
     } finally {
       mocks.reset();
       if (originalProvider === undefined) delete process.env.LLM_PROVIDER;

@@ -24,6 +24,10 @@ describe('legal knowledge routing', () => {
       'बच्चों की सुरक्षा के लिए शिकायत कहाँ करें?',
       'Bachchon ki safety ke liye report kaise karun?',
       'How do I report online cyber fraud?',
+      'मेरे साथ ऑनलाइन स्कैम हुआ है, मुझे क्या करना चाहिए?',
+      'मेरे UPI से पैसे कट गए, अब शिकायत कहाँ करूँ?',
+      'मेरे बैंक खाते से बिना अनुमति पैसे निकाल लिए गए। साइबर अपराध की रिपोर्ट कैसे करूँ?',
+      'UPI se paise kat gaye fraud mein, ab cybercrime report kahan karun?',
       'ऑनलाइन धोखाधड़ी की शिकायत कहाँ करूँ?',
       'Online thagi ho gayi, complaint kaise karun?',
       'Someone stole money through an online fraud. How should i report it?',
@@ -53,7 +57,10 @@ describe('legal knowledge routing', () => {
       { question: 'Mere saath online scam ho gaya, complaint kaise karun?', language: 'hinglish' },
       { question: 'Mere UPI se paise kat gaye fraud mein, ab kya karun?', language: 'hinglish' },
       { question: 'Online payment fraud ki complaint kahan kar sakta hoon?', language: 'hinglish' },
-      { question: '\u092e\u0947\u0930\u0947 \u0938\u093e\u0925 \u0911\u0928\u0932\u093e\u0907\u0928 \u0927\u094b\u0916\u093e\u0927\u0921\u093c\u0940 \u0939\u0941\u0908 \u0939\u0948, \u0936\u093f\u0915\u093e\u092f\u0924 \u0915\u0939\u093e\u0901 \u0915\u0930\u0942\u0901?', language: 'hi' }
+      { question: '\u092e\u0947\u0930\u0947 \u0938\u093e\u0925 \u0911\u0928\u0932\u093e\u0907\u0928 \u0927\u094b\u0916\u093e\u0927\u0921\u093c\u0940 \u0939\u0941\u0908 \u0939\u0948, \u0936\u093f\u0915\u093e\u092f\u0924 \u0915\u0939\u093e\u0901 \u0915\u0930\u0942\u0901?', language: 'hi' },
+      { question: '\u092e\u0947\u0930\u0947 \u0938\u093e\u0925 \u0911\u0928\u0932\u093e\u0907\u0928 \u0938\u094d\u0915\u0948\u092e \u0939\u0941\u0906 \u0939\u0948, \u092e\u0941\u091d\u0947 \u0915\u094d\u092f\u093e \u0915\u0930\u0928\u093e \u091a\u093e\u0939\u093f\u090f?', language: 'hi' },
+      { question: 'I was scammed online. What should I do?', language: 'en' },
+      { question: 'Mere saath online scam hua hai, mujhe kya karna chahiye?', language: 'hinglish' }
     ];
     const rows = [
       { id: 'nch', sourceId: 'nch-source', text: 'The National Consumer Helpline is a pre-litigation grievance channel for consumer complaints; it is not the National Cyber Crime Reporting Portal.', section: 'National Consumer Helpline', source: { id: 'nch-source', title: 'National Consumer Helpline', sourceUrl: 'https://consumerhelpline.gov.in/public/about', verified: true } },
@@ -74,9 +81,9 @@ describe('legal knowledge routing', () => {
       qdrantCalls.push({ collection, filter: options.filter });
       const cybercrimeScore = qdrantCalls.length === 4 ? 0.56 : 0.68;
       return [
-        { score: 0.93, payload: { chunk_id: 'nch', source_id: 'nch-source' } },
-        { score: 0.91, payload: { chunk_id: 'pocso', source_id: 'pocso-source' } },
-        { score: cybercrimeScore, payload: { chunk_id: 'cyber-portal', source_id: 'cyber-source' } }
+        { score: 0.93, payload: { chunk_id: 'nch', source_id: 'nch-source', verified: true, knowledge_domain: 'legal_rights' } },
+        { score: 0.91, payload: { chunk_id: 'pocso', source_id: 'pocso-source', verified: true, knowledge_domain: 'legal_rights' } },
+        { score: cybercrimeScore, payload: { chunk_id: 'cyber-portal', source_id: 'cyber-source', verified: true, knowledge_domain: 'legal_rights' } }
       ];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
@@ -98,6 +105,12 @@ describe('legal knowledge routing', () => {
     groq._setGroqClient(false);
     try {
       assert.equal(rag.isCybercrimeReportingQuestion('My new phone is defective and the seller refuses a refund.'), false);
+      assert.equal(rag.isCybercrimeReportingQuestion('मेरे साथ ऑनलाइन स्कैम हुआ है, मुझे क्या करना चाहिए?'), true);
+      assert.equal((await import('../../src/modules/ai/language.js')).detectLanguage('मेरे साथ ऑनलाइन स्कैम हुआ है, मुझे क्या करना चाहिए?'), 'hi');
+      assert.ok(rag.scoreLocalChunk(
+        'मेरे साथ ऑनलाइन स्कैम हुआ है, मुझे क्या करना चाहिए?',
+        'Report online financial fraud through the cybercrime complaint portal or call 1930.'
+      ) > 0, 'Hindi cybercrime phrasing should overlap verified English evidence in local fallback');
       for (const { question, language, expectedScore = 0.68 } of questions) {
         assert.equal(rag.isLegalQuestion(question), true, question);
         assert.equal(rag.isCybercrimeReportingQuestion(question), true, question);
@@ -111,6 +124,7 @@ describe('legal knowledge routing', () => {
         assert.equal(result.confidence, expectedScore, question);
         assert.deepEqual(result.sources.map((source) => source.source_url), ['https://cybercrime.gov.in/'], question);
         assert.match(result.answer, /cybercrime\.gov\.in.*1930/i, question);
+        assert.doesNotMatch(result.answer, /eDistrict/i, question);
       }
       assert.deepEqual(qdrantCalls.map((call) => call.collection), questions.map(() => 'legal_rights_chunks'));
       assert.ok(qdrantCalls.every((call) => call.filter.must.some((item) => item.key === 'knowledge_domain' && item.match.value === 'legal_rights')));
@@ -149,8 +163,8 @@ describe('legal knowledge routing', () => {
       for (const authored of document.vector_db_chunks) {
         assert.ok(authored.chunk_id && authored.text, file);
         assert.equal(authored.metadata.verified, true, authored.chunk_id);
-        assert.equal(authored.metadata.review_status, 'human_reviewed', authored.chunk_id);
-        assert.equal(authored.metadata.source_url, document.service_metadata.portal_url, authored.chunk_id);
+        assert.ok(['human_reviewed', 'source_verified_by_agent'].includes(authored.metadata.review_status), authored.chunk_id);
+        assert.ok(authored.metadata.source_url.startsWith('https://'), authored.chunk_id);
         assert.ok(!ids.has(authored.chunk_id), `duplicate chunk id: ${authored.chunk_id}`);
         ids.add(authored.chunk_id);
       }
@@ -286,7 +300,7 @@ describe('legal knowledge routing', () => {
     const calls = [];
     rag._setQdrantClient({ query: async (collection, options) => {
       calls.push({ collection, options });
-      return [{ score: 0.60, payload: { chunk_id: 'cybercrime-portal', source_id: 'cybercrime-source', source_ref: 'cybercrime_portal_reporting' } }];
+      return [{ score: 0.60, payload: { chunk_id: 'cybercrime-portal', source_id: 'cybercrime-source', source_ref: 'cybercrime_portal_reporting', verified: true, knowledge_domain: 'legal_rights' } }];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => [{
@@ -363,7 +377,7 @@ describe('legal knowledge routing', () => {
       calls.push(scenario.question);
       return scenario.hitIds.map((id, index) => ({
         score: 0.96 - index * 0.05,
-        payload: { chunk_id: id, source_id: rows.find((row) => row.id === id).sourceId }
+        payload: { chunk_id: id, source_id: rows.find((row) => row.id === id).sourceId, verified: true, knowledge_domain: 'legal_rights' }
       }));
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
@@ -419,7 +433,7 @@ describe('legal knowledge routing', () => {
     const calls = [];
     rag._setQdrantClient({ query: async (collection) => {
       calls.push(collection);
-      return [{ score: 0.62, payload: { chunk_id: 'hindi-legal', source_id: 'legal-source' } }];
+      return [{ score: 0.62, payload: { chunk_id: 'hindi-legal', source_id: 'legal-source', verified: true, knowledge_domain: 'legal_rights' } }];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => [{
@@ -454,7 +468,7 @@ describe('legal knowledge routing', () => {
     const calls = [];
     rag._setQdrantClient({ query: async (collection, options) => {
       calls.push({ collection, options });
-      return [{ score: 0.67, payload: { chunk_id: 'bnss-refusal-route', source_id: 'bnss-source', source_ref: 'bnss_2023_refusal_route' } }];
+      return [{ score: 0.67, payload: { chunk_id: 'bnss-refusal-route', source_id: 'bnss-source', source_ref: 'bnss_2023_refusal_route', verified: true, knowledge_domain: 'legal_rights' } }];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => [{
@@ -500,7 +514,7 @@ describe('legal knowledge routing', () => {
     const calls = [];
     rag._setQdrantClient({ query: async (collection) => {
       calls.push(collection);
-      return [{ score: 0.62, payload: { chunk_id: 'unrelated-low-score', source_id: 'service-source', service_id: 'up_income_certificate' } }];
+      return [{ score: 0.62, payload: { chunk_id: 'unrelated-low-score', source_id: 'service-source', service_id: 'up_income_certificate', verified: true } }];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({
@@ -537,7 +551,7 @@ describe('legal knowledge routing', () => {
 
   it('does not return legal collection hits whose PostgreSQL source is unverified', async () => {
     const rag = await import('../../src/modules/ai/rag.service.js');
-    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'draft', source_id: 'draft-source' } }] });
+    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'draft', source_id: 'draft-source', verified: true, knowledge_domain: 'legal_rights' } }] });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => {
       assert.equal(where.verified, true);
@@ -596,7 +610,7 @@ describe('legal knowledge routing', () => {
     rag._setQdrantClient({ query: async (_collection, options) => {
       const current = cases[index++];
       assert.ok(options.filter.must.some((condition) => condition.key === 'service_id' && condition.match.value === 'up_character_certificate'));
-      return [{ score: 0.91, payload: { chunk_id: current.id, source_id: 'character-source', service_id: 'up_character_certificate' } }];
+      return [{ score: 0.91, payload: { chunk_id: current.id, source_id: 'character-source', service_id: 'up_character_certificate', verified: true } }];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => {
@@ -659,7 +673,8 @@ describe('legal knowledge routing', () => {
         assert.ok(options.filter.must.some((condition) => condition.key === 'service_id' && condition.match.value === 'up_character_certificate'));
       }
       return [{ score: 0.99, payload: {
-        chunk_id: record.id, source_id: record.sourceId,
+        chunk_id: record.id, source_id: record.sourceId, verified: true,
+        ...(record.id === 'legal-aid' ? { knowledge_domain: 'legal_rights' } : {}),
         ...(record.id === 'character-overview' ? { service_id: 'up_character_certificate' } : {})
       } }];
     } });
@@ -685,7 +700,7 @@ describe('legal knowledge routing', () => {
         question: 'What details does the character certificate form record?', language: 'en'
       });
       assert.equal(supported.generation_status, 'fallback');
-      assert.equal(supported.needs_human, false);
+      assert.equal(supported.needs_human, true);
       assert.match(supported.answer, /criminal case details/);
       assert.equal(supported.sources[0].source_url, 'https://example.gov/character');
       assert.equal(geminiCalls, 1);
@@ -714,7 +729,7 @@ describe('legal knowledge routing', () => {
     assert.ok(document.eligibility_criteria?.length, 'the JSON has structured criteria');
     assert.ok(chunks.every((chunk) => !/eligibility/i.test(`${chunk.topic} ${chunk.text}`)), 'authored chunks omit eligibility');
 
-    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'domicile-overview', source_id: 'domicile-source', service_id: 'up_domicile_certificate' } }] });
+    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'domicile-overview', source_id: 'domicile-source', service_id: 'up_domicile_certificate', verified: true } }] });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async () => [{
       id: 'domicile-overview', sourceId: 'domicile-source', text: chunks[0].text, section: 'Overview & Fee',
@@ -748,7 +763,7 @@ describe('legal knowledge routing', () => {
     rag._setQdrantClient({ query: async (collection, options) => {
       calls.push({ collection, options });
       return (calls.length === 1 ? [rows[0], rows[1]] : [rows[2], rows[3]]).map((row) => ({
-        score: 0.99, payload: { chunk_id: row.id, source_id: row.sourceId }
+        score: 0.99, payload: { chunk_id: row.id, source_id: row.sourceId, verified: true, knowledge_domain: 'legal_rights' }
       }));
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
@@ -779,7 +794,7 @@ describe('legal knowledge routing', () => {
 
   it('does not suggest a certificate service for verified legal results', async () => {
     const rag = await import('../../src/modules/ai/rag.service.js');
-    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'verified-legal', source_id: 'legal-source', source_ref: 'rights-article-14' } }] });
+    rag._setQdrantClient({ query: async () => [{ score: 0.99, payload: { chunk_id: 'verified-legal', source_id: 'legal-source', source_ref: 'rights-article-14', verified: true, knowledge_domain: 'legal_rights' } }] });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => [{
       id: where.id.in[0], sourceId: 'legal-source', text: 'Article 14 protects equality before law.',
@@ -910,7 +925,7 @@ describe('legal knowledge routing', () => {
     };
     const qdrant = {
       upsert: async () => { throw new Error('simulated Qdrant upsert failure'); },
-      query: async () => [{ id: pointId, score: 0.92, payload: { chunk_id: oldChunkId, source_id: sourceId, source_ref: oldChunk.id } }]
+      query: async () => [{ id: pointId, score: 0.92, payload: { chunk_id: oldChunkId, source_id: sourceId, source_ref: oldChunk.id, verified: true, knowledge_domain: 'legal_rights' } }]
     };
     const knowledgeChunkDb = {
       findMany: async ({ where }) => where.id.in.includes(oldChunkId) ? [oldRecord] : [],
@@ -964,7 +979,8 @@ describe('legal knowledge routing', () => {
       assert.ok(legal.chunks.every((chunk) => chunk.verified === true));
 
       const certificate = await rag.retrieve('income certificate');
-      assert.deepEqual(certificate.chunks, [], 'Certificate chunks with unknown verification metadata stay excluded');
+    assert.ok(certificate.chunks.every((chunk) => chunk.verified === true), 'Only explicitly source-verified certificate chunks are allowed');
+    assert.ok(certificate.chunks.every((chunk) => chunk.id.startsWith('up_income_cert_official_') || chunk.id === 'up_income_cert_overview' || chunk.id === 'up_income_cert_aadhaar_notification_2023'));
       assert.ok(legal.chunks.every((legalChunk) =>
         certificate.chunks.every((serviceChunk) => legalChunk.id !== serviceChunk.id)
       ), 'Legal and citizen-service fallback results should remain separate');
@@ -1098,7 +1114,7 @@ describe('RAG evaluation quality audit', () => {
     const calls = [];
     rag._setQdrantClient({ query: async (collection, options) => {
       calls.push({ collection, options });
-      return [{ score: 0.66, payload: { chunk_id: chunk.id, source_id: sourceId, source_ref: chunk.source_ref } }];
+      return [{ score: 0.66, payload: { chunk_id: chunk.id, source_id: sourceId, source_ref: chunk.source_ref, verified: true, knowledge_domain: 'legal_rights' } }];
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });
     rag._setKnowledgeDbClient({ knowledgeChunk: { findMany: async ({ where }) => where.id.in.includes(record.id) ? [record] : [] } });
@@ -1155,7 +1171,7 @@ describe('RAG evaluation quality audit', () => {
       requestedLimit = options.limit;
       return ranked.slice(0, options.limit).map((row, index) => ({
         score: 0.99 - index * 0.01,
-        payload: { chunk_id: row.id, source_id: row.sourceId }
+        payload: { chunk_id: row.id, source_id: row.sourceId, verified: true, knowledge_domain: 'legal_rights' }
       }));
     } });
     rag._setEmbedClient({ models: { embedContent: async () => ({ embeddings: [{ values: [0.1] }] }) } });

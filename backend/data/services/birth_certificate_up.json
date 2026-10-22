@@ -6,7 +6,9 @@
         "state": "Uttar Pradesh",
         "source_type": "official_portal",
         "portal_name": "eDistrict Uttar Pradesh",
-        "portal_url": "https://edistrict.up.gov.in"
+        "portal_url": "https://edistrict.up.gov.in",
+        "verified": true,
+        "review_status": "human_reviewed"
     },
     "eligibility_criteria": [
         "Birth should generally be registered within 21 days of the event.",
@@ -65,7 +67,9 @@
                 "section": "Overview & Registration",
                 "doc_id": "birth_certificate_up",
                 "source_type": "official_portal",
-                "source_url": "https://edistrict.up.gov.in"
+                "source_url": "https://edistrict.up.gov.in",
+                "verified": true,
+                "review_status": "human_reviewed"
             }
         },
         {
@@ -77,19 +81,23 @@
                 "section": "Required Documents",
                 "doc_id": "birth_certificate_up",
                 "source_type": "official_portal",
-                "source_url": "https://edistrict.up.gov.in"
+                "source_url": "https://edistrict.up.gov.in",
+                "verified": true,
+                "review_status": "human_reviewed"
             }
         },
         {
             "chunk_id": "up_birth_cert_fees",
-            "text": "Birth Certificate registration fees according to the provided UP source: registration within 21 days is free. Registration after 21 days but within one month has a late fee of ₹2. Registration after 30 days but before one year has a late fee of ₹5 and requires permission from the applicable health authority. Registration delayed by one year requires a Sub-Divisional Magistrate order.",
+            "text": "Birth Certificate registration fees according to the provided UP source: registration within 21 days is free. Registration after 21 days but within one month has a late fee of ₹2. Registration after 30 days but before one year has a late fee of ₹5 and requires permission from the applicable health authority.",
             "metadata": {
                 "service_name": "Birth Certificate",
                 "state": "Uttar Pradesh",
                 "section": "Fees & Delayed Registration",
                 "doc_id": "birth_certificate_up",
                 "source_type": "official_portal",
-                "source_url": "https://edistrict.up.gov.in"
+                "source_url": "https://edistrict.up.gov.in",
+                "verified": true,
+                "review_status": "human_reviewed"
             }
         },
         {
@@ -101,7 +109,9 @@
                 "section": "Offline Application",
                 "doc_id": "birth_certificate_up",
                 "source_type": "official_portal",
-                "source_url": "https://edistrict.up.gov.in"
+                "source_url": "https://edistrict.up.gov.in",
+                "verified": true,
+                "review_status": "human_reviewed"
             }
         },
         {
@@ -113,7 +123,26 @@
                 "section": "Online Application",
                 "doc_id": "birth_certificate_up",
                 "source_type": "official_portal",
-                "source_url": "https://edistrict.up.gov.in"
+                "source_url": "https://edistrict.up.gov.in",
+                "verified": true,
+                "review_status": "human_reviewed"
+            }
+        },
+        {
+            "chunk_id": "up_birth_registration_delay_more_than_year",
+            "text": "Under section 13(3) of the Registration of Births and Deaths Act, 1969, as amended with effect from 1 October 2023, a birth or death not registered within one year may be registered only on an order by the District Magistrate, Sub-Divisional Magistrate, or an Executive Magistrate authorised by the District Magistrate who has jurisdiction over the area, after verification and payment of the prescribed fee.",
+            "metadata": {
+                "service_name": "Birth Certificate",
+                "state": "Uttar Pradesh",
+                "section": "Delayed Registration After One Year (Section 13(3))",
+                "doc_id": "birth_certificate_up",
+                "source_type": "official_central_legislation",
+                "source_url": "https://www.indiacode.nic.in/bitstream/123456789/1682/3/A1969-18.pdf",
+                "department": "Ministry of Home Affairs, Government of India",
+                "language": "en",
+                "verified": true,
+                "review_status": "source_verified_by_agent",
+                "verification_note": "Checked the consolidated India Code text of section 13(3), including the amendment effective 1 October 2023, on 2026-10-22."
             }
         }
     ]

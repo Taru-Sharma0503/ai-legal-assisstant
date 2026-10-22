@@ -8,6 +8,9 @@
     "issuing_authority": "SDM (उप जिलाधिकारी) / Tehsildar (तहसीलदार)",
     "portal_name": "eDistrict Uttar Pradesh",
     "portal_url": "https://edistrict.up.gov.in",
+    "source_type": "official_portal",
+    "verified": true,
+    "review_status": "human_reviewed",
     "fee_details": {
       "amount_inr": 30,
       "effective_from": "2020-11-16",
@@ -106,7 +109,11 @@
         "service_name": "Domicile Certificate",
         "state": "Uttar Pradesh",
         "section": "Overview & Fee",
-        "doc_id": "domicile_certificate_up"
+        "doc_id": "domicile_certificate_up",
+        "source_type": "official_portal",
+        "source_url": "https://edistrict.up.gov.in",
+        "verified": true,
+        "review_status": "human_reviewed"
       }
     },
     {
@@ -116,7 +123,11 @@
         "service_name": "Domicile Certificate",
         "state": "Uttar Pradesh",
         "section": "Required Documents",
-        "doc_id": "domicile_certificate_up"
+        "doc_id": "domicile_certificate_up",
+        "source_type": "official_portal",
+        "source_url": "https://edistrict.up.gov.in",
+        "verified": true,
+        "review_status": "human_reviewed"
       }
     },
     {
@@ -126,7 +137,11 @@
         "service_name": "Domicile Certificate",
         "state": "Uttar Pradesh",
         "section": "Application Procedure",
-        "doc_id": "domicile_certificate_up"
+        "doc_id": "domicile_certificate_up",
+        "source_type": "official_portal",
+        "source_url": "https://edistrict.up.gov.in",
+        "verified": true,
+        "review_status": "human_reviewed"
       }
     }
   ]

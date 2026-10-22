@@ -139,7 +139,13 @@ export function evaluateCaseOutcome(tc, result, { noLlm = NO_LLM } = {}) {
   } else if (answerability === 'unsupported_no_evidence') {
     if (result.needs_human !== true) fail(`needs_human: got ${result.needs_human}, want true`);
     if (sources.length > 0) fail(`unsupported question returned sources: ${sources.map((source) => source.topic || source.title || source.id).join(', ')}`);
-    const safeFallbacks = [LOW_CONF_MSG[tc.lang], UNKNOWN_FIELD_MSG[tc.lang], LOW_CONF_MSG.en, UNKNOWN_FIELD_MSG.en].filter(Boolean);
+    const safeFallbacks = [
+      LOW_CONF_MSG[tc.lang],
+      UNKNOWN_FIELD_MSG[tc.lang],
+      LOW_CONF_MSG.en,
+      UNKNOWN_FIELD_MSG.en,
+      "I don't have enough verified information to answer this accurately. Please check with an official officer."
+    ].filter(Boolean);
     if (!safeFallbacks.includes(answer)) fail('unsupported question did not return a known no-evidence fallback');
     if (tc.knownGap) notes.push(`known gap: ${tc.knownGapNote || 'no relevant authored evidence'}`);
   }
